@@ -8,9 +8,12 @@ into everyday equivalents (paired cards — raw value on the left, its everyday
 equivalent on the right — joined by a wavy connector), an abstract country map
 with the project's specific region highlighted, a "most impactful tree"
 highlight card (top species by carbon sequestered, with a real reference
-photo), a cost-savings donut, a species-composition donut plus ratio meters
-for canopy/softscape/native/lighting stats, color-coded pollutant and species
-bar charts, and a floor/softscape breakdown table. Near the bottom, a
+photo), and a pastel categorical palette (distinct from the page's brand
+green) for anything that identifies categories rather than magnitude: the
+cost-savings donut, the species-composition donut, and per-species colors
+shared across the species bar chart, its own carbon-share pie chart, and its
+table — plus ratio meters for canopy/softscape/native/lighting stats and a
+floor/softscape breakdown table. Near the bottom, a
 **growth-year selector** (for projects that model the same planted layout at
 different tree ages via Revit design options, e.g. 5/10/15/20/25 years) sits
 beside the translation cards — click any card to drive the growth bar/curve

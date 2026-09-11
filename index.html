@@ -28,6 +28,11 @@
     --hero-bg: #14201a;
     --active: var(--brand-500);
     --inactive: #c7d0c3;
+    /* Pastel categorical set — for charts that identify distinct categories (cost-savings donut,
+       species composition, per-species coloring), where the page's brand green alone can't tell
+       segments apart. Fixed order/roles, not cycled arbitrarily. */
+    --cat-1: #8cae8a; --cat-2: #7fa2c9; --cat-3: #d99b77; --cat-4: #d3b566;
+    --cat-5: #b491b0; --cat-6: #74ada4; --cat-7: #b3a184; --cat-8: #cf8b96;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -40,6 +45,8 @@
       --gold: #f0c65a; --gold-ink: #f0c65a; --hero-bg: #0c1210;
       --active: var(--brand-500);
       --inactive: #454f43;
+      --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
+      --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
     }
   }
   :root[data-theme="dark"] {
@@ -49,9 +56,11 @@
     --gridline: #2c352b; --baseline: #3b463a; --border: rgba(255,255,255,0.10);
     --brand-900: #0d2412; --brand-700: #2c8a41; --brand-500: #4caf62; --brand-300: #7fd08f;
     --brand-wash: rgba(76,175,98,0.14); --brand-wash-strong: rgba(76,175,98,0.22);
-    --gold: #f0c65a; --hero-bg: #0c1210;
+    --gold: #f0c65a; --gold-ink: #f0c65a; --hero-bg: #0c1210;
     --active: var(--brand-500);
     --inactive: #454f43;
+    --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
+    --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
   }
 
   * { box-sizing: border-box; }
@@ -185,7 +194,7 @@
   .legend { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
   .legend .row { display: flex; align-items: center; gap: 8px; }
   .legend .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-  .legend .name { color: var(--text-secondary); }
+  .legend .name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .legend .pct { font-weight: 700; margin-left: auto; padding-left: 14px; }
 
   /* bars */
@@ -384,10 +393,15 @@
           </div>
           <div class="toggle-tabs" id="speciesViewTabs">
             <button data-view="chart" class="active">Chart</button>
+            <button data-view="pie">Pie</button>
             <button data-view="table">Table</button>
           </div>
         </div>
         <div id="speciesBars"></div>
+        <div class="donut-wrap" id="speciesPieWrap" style="display:none;">
+          <svg id="speciesPie" width="170" height="170" viewBox="0 0 170 170"></svg>
+          <div class="legend" id="speciesPieLegend"></div>
+        </div>
         <div class="table-scroll" id="speciesTableWrap" style="display:none;">
           <table class="data" id="speciesTable"></table>
         </div>
@@ -702,6 +716,7 @@
     state.speciesView = btn.dataset.view;
     [...$('speciesViewTabs').children].forEach(b => b.classList.toggle('active', b === btn));
     $('speciesBars').style.display = state.speciesView === 'chart' ? 'block' : 'none';
+    $('speciesPieWrap').style.display = state.speciesView === 'pie' ? 'flex' : 'none';
     $('speciesTableWrap').style.display = state.speciesView === 'table' ? 'block' : 'none';
   });
 
@@ -1117,13 +1132,16 @@
   }
 
   // ---------------- Donut ----------------
+  // Categorical pastel palette here, not the page's brand green — this chart's whole job is telling
+  // three genuinely different categories apart, which one hue family (however many shades) can't do
+  // as reliably as distinct hues can.
   function renderCostDonut(isAnnual, t, currency) {
     const segs = [
-      { key: 'carbon', label: 'Carbon uptake', color: PALETTE.carbon,
+      { key: 'carbon', label: 'Carbon uptake', color: 'var(--cat-1)',
         v: isAnnual ? (t.carbonCostSavedAnnual ?? 0) : (t.carbonCostSavedLifetime ?? 0) },
-      { key: 'water', label: 'Storm water', color: PALETTE.water,
+      { key: 'water', label: 'Storm water', color: 'var(--cat-2)',
         v: isAnnual ? (t.stormWaterCostSavedAnnual ?? 0) : (t.stormWaterCostSavedLifetime ?? 0) },
-      { key: 'air', label: 'Air pollution', color: PALETTE.air,
+      { key: 'air', label: 'Air pollution', color: 'var(--cat-3)',
         v: isAnnual ? (t.airPollutionCostSavedAnnual ?? 0) : (t.airPollutionCostSavedLifetime ?? 0) },
     ];
     const total = segs.reduce((s, x) => s + Math.max(0, x.v), 0);
@@ -1179,12 +1197,14 @@
 
   // ---------------- Species ----------------
   // A fixed identifying color per species (not derived from its own magnitude, so it isn't a
-  // magnitude ramp double-encoding the bar length) — a green-family step by rank, so the same
-  // species reads as the same color in both the chart and the table, and switching Chart/Table
-  // never reshuffles which color means which species.
-  function speciesRampColor(index, total) {
-    const t = total > 1 ? index / (total - 1) : 0;
-    return `color-mix(in srgb, var(--brand-900) ${((1 - t) * 100).toFixed(0)}%, var(--brand-300) ${(t * 100).toFixed(0)}%)`;
+  // magnitude ramp double-encoding the bar length) from the 8-slot pastel categorical set — distinct
+  // hues read apart far more reliably than shades of one hue, and the fixed slot order means the
+  // same species is always the same color across the bar chart, the table, and the carbon-share
+  // donut, whichever view is showing. A 9th+ species (rare — the chart itself caps at 8) wraps back
+  // to slot 1 rather than inventing a new hue.
+  const SPECIES_CATEGORY_COLORS = ['--cat-1', '--cat-2', '--cat-3', '--cat-4', '--cat-5', '--cat-6', '--cat-7', '--cat-8'];
+  function speciesRampColor(index) {
+    return `var(${SPECIES_CATEGORY_COLORS[index % SPECIES_CATEGORY_COLORS.length]})`;
   }
 
   function renderSpecies(species, isAnnual, currency) {
@@ -1201,7 +1221,7 @@
 
     // Assigned once over the full (sorted) list, not recomputed per view, so the same species is
     // always the same color whether it's showing in the top-8 chart or scrolling by in the table.
-    rows.forEach((r, i) => { r.color = speciesRampColor(i, rows.length); });
+    rows.forEach((r, i) => { r.color = speciesRampColor(i); });
 
     const top = rows.slice(0, 8);
     const max = Math.max(1e-9, ...top.map(r => r.carbon));
@@ -1220,7 +1240,54 @@
         <td class="num">${fixed(r.carbon, 1)}</td><td class="num">${fixed(r.pollution, 2)}</td>
         <td class="num">${money(r.cost, currency)}</td></tr>`).join('')}</tbody>`;
 
+    renderSpeciesPie(top, rows);
     renderTopTreeHighlight(rows[0], currency);
+  }
+
+  // Each species keeps the exact color it already has in the bar chart/table (assigned above) —
+  // species beyond the top 8 fold into one neutral "Other species" slice, same convention as the
+  // bar chart's own "top 8 shown" cap.
+  function renderSpeciesPie(top, rows) {
+    if (!rows.length) {
+      $('speciesPie').innerHTML = '';
+      $('speciesPieLegend').innerHTML = '';
+      return;
+    }
+
+    const topTotal = top.reduce((s, r) => s + Math.max(0, r.carbon), 0);
+    const restTotal = rows.slice(top.length).reduce((s, r) => s + Math.max(0, r.carbon), 0);
+    const segs = top.map((r) => ({ label: r.name, v: Math.max(0, r.carbon), color: r.color }));
+    if (restTotal > 0) segs.push({ label: 'Other species', v: restTotal, color: 'var(--gridline)' });
+    const total = topTotal + restTotal;
+
+    const svg = $('speciesPie');
+    const r = 66, cx = 85, cy = 85, thickness = 18;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+    let parts = '';
+    segs.forEach((seg) => {
+      const frac = total > 0 ? seg.v / total : 0;
+      const gap = frac > 0 ? 2 : 0;
+      const len = Math.max(0, frac * circumference - gap);
+      parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${thickness}"
+        stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}" stroke-linecap="round"
+        data-tip="${escapeAttr(seg.label)}: ${fixed(seg.v, 0)} kg (${(frac * 100).toFixed(0)}%)" class="donut-seg"/>`;
+      offset += frac * circumference;
+    });
+    svg.innerHTML = parts +
+      `<text x="${cx}" y="${cy - 2}" text-anchor="middle" fill="var(--text-primary)" style="font-size:16px;font-weight:700;">${fixed(total, 0)}</text>
+       <text x="${cx}" y="${cy + 15}" text-anchor="middle" fill="var(--text-muted)" style="font-size:9px;letter-spacing:.03em;text-transform:uppercase;">kg carbon</text>`;
+
+    svg.querySelectorAll('.donut-seg').forEach((el) => {
+      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
+      el.addEventListener('mouseleave', hideTooltip);
+    });
+
+    $('speciesPieLegend').innerHTML = segs.map((seg) => {
+      const frac = total > 0 ? (seg.v / total) * 100 : 0;
+      return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
+        <span class="name" title="${escapeAttr(seg.label)}">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+    }).join('');
   }
 
   // ---------------- Most impactful tree ----------------
@@ -1333,8 +1400,8 @@
     const total = native + adaptive + other;
 
     const segs = [
-      { label: 'Native', v: native, color: 'var(--brand-700)' },
-      { label: 'Adaptive', v: adaptive, color: 'var(--brand-300)' },
+      { label: 'Native', v: native, color: 'var(--cat-1)' },
+      { label: 'Adaptive', v: adaptive, color: 'var(--cat-2)' },
       { label: 'Other / unclassified', v: other, color: 'var(--gridline)' },
     ];
 

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "title": "Hereford Station Transport Hub",
+    "currency": "GBP",
+    "location": {
+      "latitude": 52.0567,
+      "longitude": -2.7160,
+      "placeName": "Hereford Station, Hereford, UK"
+    },
+    "generatedAt": "2026-09-11T09:30:00Z"
+  },
+  "totals": {
+    "treeCount": 48,
+    "treesExcludedFromTotals": 2,
+    "carbonSequesteredAnnualKg": 1115.0,
+    "carbonSequesteredLifetimeKg": 22300.0,
+    "co2EquivalentAnnualKg": 1115.0,
+    "co2EquivalentLifetimeKg": 22300.0,
+    "runoffAvoidedAnnualM3": 105.8,
+    "runoffAvoidedLifetimeM3": 2116.0,
+    "rainfallInterceptedAnnualM3": 61.4,
+    "rainfallInterceptedLifetimeM3": 1228.0,
+    "pollutantsRemovedAnnual": { "pm25Kg": 1.9, "no2Kg": 1.3, "o3Kg": 1.1, "so2Kg": 0.61, "coKg": 0.7, "totalKg": 5.61 },
+    "pollutantsRemovedLifetime": { "pm25Kg": 38.0, "no2Kg": 26.0, "o3Kg": 22.0, "so2Kg": 12.2, "coKg": 14.0, "totalKg": 112.2 },
+    "treeCostSavedAnnual": 2588.0,
+    "treeCostSavedLifetime": 51760.0,
+    "carbonCostSavedAnnual": 980.0,
+    "carbonCostSavedLifetime": 19600.0,
+    "stormWaterCostSavedAnnual": 1120.0,
+    "stormWaterCostSavedLifetime": 22400.0,
+    "airPollutionCostSavedAnnual": 488.0,
+    "airPollutionCostSavedLifetime": 9760.0,
+    "floorCount": 6,
+    "floorAreaSquareMeters": 340.0,
+    "floorCarbonSequesteredAnnualKg": 210.0,
+    "floorRunoffAvoidedAnnualM3": 48.0,
+    "floorPollutionMassRemovedAnnualKg": 0.9,
+    "floorOxygenProducedAnnualKg": 8119.0,
+    "floorTotalGwp": 1450.0,
+    "floorCostSavedAnnual": 788.0
+  },
+  "siteKpi": {
+    "canopyCoverPercent": 34.2,
+    "canopyAreaSquareMeters": 1860.0,
+    "softscapeSurfaceRatioPercent": 41.5,
+    "perviousAreaSquareMeters": 2250.0,
+    "distinctSpeciesCount": 9,
+    "nativeTreeCount": 31,
+    "adaptiveTreeCount": 12,
+    "nativeSpeciesRatioPercent": 68.0,
+    "distinctBloomMonthsCount": 7,
+    "distinctEcologicalFunctionsCount": 5,
+    "habitatConnectivityScore": 72.0,
+    "lightingFixtureCount": 24,
+    "darkSkyCompliantFixtureCount": 19,
+    "lightingCompliancePercent": 79.2
+  },
+  "species": [
+    { "speciesCode": "ACPL", "commonName": "Norway Maple", "treeCount": 12, "carbonSequesteredAnnualKg": 320.0, "carbonSequesteredLifetimeKg": 6400.0, "pollutionMassRemovedAnnualKg": 1.6, "pollutionMassRemovedLifetimeKg": 32.0, "carbonCostSavedAnnual": 260.0, "carbonCostSavedLifetime": 5200.0, "stormWaterCostSavedAnnual": 300.0, "stormWaterCostSavedLifetime": 6000.0, "airPollutionCostSavedAnnual": 130.0, "airPollutionCostSavedLifetime": 2600.0 },
+    { "speciesCode": "QURO", "commonName": "English Oak", "treeCount": 8, "carbonSequesteredAnnualKg": 280.0, "carbonSequesteredLifetimeKg": 5600.0, "pollutionMassRemovedAnnualKg": 1.2, "pollutionMassRemovedLifetimeKg": 24.0, "carbonCostSavedAnnual": 230.0, "carbonCostSavedLifetime": 4600.0, "stormWaterCostSavedAnnual": 260.0, "stormWaterCostSavedLifetime": 5200.0, "airPollutionCostSavedAnnual": 100.0, "airPollutionCostSavedLifetime": 2000.0 },
+    { "speciesCode": "BEPE", "commonName": "Silver Birch", "treeCount": 10, "carbonSequesteredAnnualKg": 190.0, "carbonSequesteredLifetimeKg": 3800.0, "pollutionMassRemovedAnnualKg": 0.9, "pollutionMassRemovedLifetimeKg": 18.0, "carbonCostSavedAnnual": 160.0, "carbonCostSavedLifetime": 3200.0, "stormWaterCostSavedAnnual": 180.0, "stormWaterCostSavedLifetime": 3600.0, "airPollutionCostSavedAnnual": 75.0, "airPollutionCostSavedLifetime": 1500.0 },
+    { "speciesCode": "TICO", "commonName": "Small-Leaved Lime", "treeCount": 6, "carbonSequesteredAnnualKg": 140.0, "carbonSequesteredLifetimeKg": 2800.0, "pollutionMassRemovedAnnualKg": 0.6, "pollutionMassRemovedLifetimeKg": 12.0, "carbonCostSavedAnnual": 110.0, "carbonCostSavedLifetime": 2200.0, "stormWaterCostSavedAnnual": 130.0, "stormWaterCostSavedLifetime": 2600.0, "airPollutionCostSavedAnnual": 55.0, "airPollutionCostSavedLifetime": 1100.0 },
+    { "speciesCode": "FRAX", "commonName": "Common Ash", "treeCount": 5, "carbonSequesteredAnnualKg": 95.0, "carbonSequesteredLifetimeKg": 1900.0, "pollutionMassRemovedAnnualKg": 0.5, "pollutionMassRemovedLifetimeKg": 10.0, "carbonCostSavedAnnual": 80.0, "carbonCostSavedLifetime": 1600.0, "stormWaterCostSavedAnnual": 90.0, "stormWaterCostSavedLifetime": 1800.0, "airPollutionCostSavedAnnual": 40.0, "airPollutionCostSavedLifetime": 800.0 },
+    { "speciesCode": "CABE", "commonName": "Hornbeam", "treeCount": 4, "carbonSequesteredAnnualKg": 55.0, "carbonSequesteredLifetimeKg": 1100.0, "pollutionMassRemovedAnnualKg": 0.35, "pollutionMassRemovedLifetimeKg": 7.0, "carbonCostSavedAnnual": 45.0, "carbonCostSavedLifetime": 900.0, "stormWaterCostSavedAnnual": 50.0, "stormWaterCostSavedLifetime": 1000.0, "airPollutionCostSavedAnnual": 22.0, "airPollutionCostSavedLifetime": 440.0 },
+    { "speciesCode": "SOAU", "commonName": "Whitebeam", "treeCount": 2, "carbonSequesteredAnnualKg": 25.0, "carbonSequesteredLifetimeKg": 500.0, "pollutionMassRemovedAnnualKg": 0.28, "pollutionMassRemovedLifetimeKg": 5.6, "carbonCostSavedAnnual": 20.0, "carbonCostSavedLifetime": 400.0, "stormWaterCostSavedAnnual": 22.0, "stormWaterCostSavedLifetime": 440.0, "airPollutionCostSavedAnnual": 10.0, "airPollutionCostSavedLifetime": 200.0 },
+    { "speciesCode": "ILAQ", "commonName": "Holly", "treeCount": 1, "carbonSequesteredAnnualKg": 10.0, "carbonSequesteredLifetimeKg": 200.0, "pollutionMassRemovedAnnualKg": 0.22, "pollutionMassRemovedLifetimeKg": 4.4, "carbonCostSavedAnnual": 8.0, "carbonCostSavedLifetime": 160.0, "stormWaterCostSavedAnnual": 9.0, "stormWaterCostSavedLifetime": 180.0, "airPollutionCostSavedAnnual": 4.0, "airPollutionCostSavedLifetime": 80.0 }
+  ],
+  "floorTypes": [
+    { "ldsType": "Extensive Green Roof", "floorCount": 3, "areaSquareMeters": 210.0, "carbonSequesteredAnnualKg": 140.0, "runoffAvoidedAnnualM3": 32.0, "pollutionMassRemovedAnnualKg": 0.55, "oxygenProducedAnnualKg": 5200.0, "totalGwp": 900.0, "costSavedAnnual": 520.0 },
+    { "ldsType": "Permeable Paving", "floorCount": 2, "areaSquareMeters": 95.0, "carbonSequesteredAnnualKg": 40.0, "runoffAvoidedAnnualM3": 14.0, "pollutionMassRemovedAnnualKg": 0.2, "oxygenProducedAnnualKg": 1800.0, "totalGwp": 380.0, "costSavedAnnual": 190.0 },
+    { "ldsType": "Rain Garden", "floorCount": 1, "areaSquareMeters": 35.0, "carbonSequesteredAnnualKg": 30.0, "runoffAvoidedAnnualM3": 2.0, "pollutionMassRemovedAnnualKg": 0.15, "oxygenProducedAnnualKg": 1119.0, "totalGwp": 170.0, "costSavedAnnual": 78.0 }
+  ]
+}

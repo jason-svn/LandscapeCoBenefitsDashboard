@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landscape Co-Benefits Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:   #fcfcfb;
+    --surface-2:   #ffffff;
+    --page:        #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:    #e1e0d9;
+    --baseline:    #c3c2b7;
+    --border:      rgba(11,11,11,0.10);
+    --slot-1: #2a78d6; /* blue    -> water / stormwater */
+    --slot-2: #eb6834; /* orange  -> carbon / CO2 */
+    --slot-3: #1baf7a; /* aqua    -> air / pollutants */
+    --slot-4: #eda100; /* yellow  -> oxygen / air generated */
+    --slot-5: #e87ba4; /* magenta -> cost saved */
+    --slot-1-wash: rgba(42,120,214,0.10);
+    --slot-2-wash: rgba(235,104,52,0.10);
+    --slot-3-wash: rgba(27,175,122,0.10);
+    --slot-4-wash: rgba(237,161,0,0.10);
+    --slot-5-wash: rgba(232,123,164,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #202020; --page: #0d0d0d;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+      --gridline: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --slot-1: #3987e5; --slot-2: #d95926; --slot-3: #199e70; --slot-4: #c98500; --slot-5: #d55181;
+      --slot-1-wash: rgba(57,135,229,0.14); --slot-2-wash: rgba(217,89,38,0.14);
+      --slot-3-wash: rgba(25,158,112,0.14); --slot-4-wash: rgba(201,133,0,0.14); --slot-5-wash: rgba(213,81,129,0.14);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #202020; --page: #0d0d0d;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --gridline: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+    --slot-1: #3987e5; --slot-2: #d95926; --slot-3: #199e70; --slot-4: #c98500; --slot-5: #d55181;
+    --slot-1-wash: rgba(57,135,229,0.14); --slot-2-wash: rgba(217,89,38,0.14);
+    --slot-3-wash: rgba(25,158,112,0.14); --slot-4-wash: rgba(201,133,0,0.14); --slot-5-wash: rgba(213,81,129,0.14);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 0 max(16px, env(safe-area-inset-left)) 48px max(16px, env(safe-area-inset-right));
+  }
+  a { color: var(--slot-1); }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+    padding: 20px 0 16px;
+  }
+  header.top .brand { display: flex; flex-direction: column; gap: 2px; }
+  header.top h1 { font-size: 20px; margin: 0; font-weight: 700; letter-spacing: 0.01em; }
+  header.top .sub { font-size: 13px; color: var(--text-secondary); }
+  .top-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  button.btn {
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
+    color: var(--text-primary); padding: 8px 14px;
+  }
+  button.btn:hover { background: var(--surface-1); }
+  button.btn.primary { background: var(--slot-1); border-color: var(--slot-1); color: #fff; }
+  button.btn.ghost { background: transparent; }
+
+  /* --- Upload panel --- */
+  #uploadPanel {
+    border: 2px dashed var(--baseline); border-radius: 16px; background: var(--surface-2);
+    padding: 48px 24px; text-align: center; margin-top: 12px;
+  }
+  #uploadPanel.dragover { border-color: var(--slot-1); background: var(--slot-1-wash); }
+  #uploadPanel h2 { margin: 0 0 6px; font-size: 18px; }
+  #uploadPanel p { margin: 0 0 18px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
+  #uploadPanel .hint { margin-top: 14px; font-size: 12px; color: var(--text-muted); }
+  #fileInput { display: none; }
+  #errorBox {
+    display: none; margin-top: 14px; padding: 10px 14px; border-radius: 8px;
+    background: rgba(211,59,59,0.12); color: #d03b3b; font-size: 13px; text-align: left;
+  }
+
+  main#dashboard { display: none; }
+
+  /* --- KPI cards --- */
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0; }
+  @media (max-width: 980px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .kpi-row { grid-template-columns: 1fr; } }
+
+  .kpi-card {
+    border-radius: 14px; padding: 16px; color: #fff; position: relative; overflow: hidden;
+    min-height: 128px; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .kpi-card .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; display: flex; align-items: center; gap: 6px; }
+  .kpi-card .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
+  .kpi-card .equiv { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; font-weight: 600; }
+  .kpi-card .equiv .arrow { opacity: 0.7; font-size: 15px; }
+  .kpi-card .icon { width: 20px; height: 20px; flex: none; }
+  .kpi-card.c1 { background: linear-gradient(160deg, var(--slot-1), color-mix(in srgb, var(--slot-1) 65%, black)); }
+  .kpi-card.c2 { background: linear-gradient(160deg, var(--slot-2), color-mix(in srgb, var(--slot-2) 65%, black)); }
+  .kpi-card.c3 { background: linear-gradient(160deg, var(--slot-3), color-mix(in srgb, var(--slot-3) 65%, black)); }
+  .kpi-card.c4 { background: linear-gradient(160deg, var(--slot-4), color-mix(in srgb, var(--slot-4) 60%, black)); }
+  .kpi-card.c5 { background: linear-gradient(160deg, var(--slot-5), color-mix(in srgb, var(--slot-5) 65%, black)); }
+
+  /* --- Panels / grid --- */
+  .grid-2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; overflow: hidden;
+  }
+  .panel h3 { margin: 0 0 2px; font-size: 15px; }
+  .panel .panel-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+  #map { height: 320px; border-radius: 10px; margin-top: 4px; background: var(--surface-1); }
+  #mapEmpty {
+    height: 320px; border-radius: 10px; background: var(--surface-1); display: flex;
+    align-items: center; justify-content: center; text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px;
+  }
+
+  /* donut */
+  .donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center; }
+  .legend { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  .legend .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .legend .name { color: var(--text-secondary); }
+  .legend .pct { font-weight: 700; margin-left: auto; padding-left: 14px; }
+
+  /* bars */
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 74px; align-items: center; gap: 10px; margin: 10px 0; font-size: 13px; }
+  .bar-row .name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { height: 14px; border-radius: 7px; background: var(--gridline); position: relative; }
+  .bar-fill { height: 14px; border-radius: 7px; }
+  .bar-row .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* small stat tiles for site KPIs */
+  .stat-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  @media (max-width: 900px) { .stat-strip { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 520px) { .stat-strip { grid-template-columns: repeat(2, 1fr); } }
+  .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .stat-tile .v { font-size: 19px; font-weight: 700; }
+  .stat-tile .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.data th, table.data td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline); }
+  table.data th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; }
+  table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .table-scroll { overflow-x: auto; }
+
+  .toggle-tabs { display: flex; gap: 4px; background: var(--surface-1); border-radius: 8px; padding: 3px; }
+  .toggle-tabs button { border: none; background: transparent; font: inherit; font-size: 12px; font-weight: 600;
+    padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); }
+  .toggle-tabs button.active { background: var(--surface-2); color: var(--text-primary); box-shadow: 0 1px 2px var(--border); }
+
+  .tooltip {
+    position: fixed; pointer-events: none; background: var(--text-primary); color: var(--surface-2);
+    font-size: 12px; padding: 6px 9px; border-radius: 6px; transform: translate(-50%, -120%);
+    white-space: nowrap; z-index: 50; opacity: 0; transition: opacity 0.08s ease;
+  }
+  .tooltip.show { opacity: 1; }
+
+  footer.methodology {
+    margin-top: 22px; padding: 16px 18px; border-radius: 12px; background: var(--surface-2);
+    border: 1px solid var(--border); font-size: 12px; color: var(--text-muted); line-height: 1.6;
+  }
+  footer.methodology strong { color: var(--text-secondary); }
+  .gen-time { font-size: 12px; color: var(--text-muted); margin-top: 18px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Landscape Co-Benefits Dashboard</h1>
+      <div class="sub" id="headerSub">Upload an exported JSON snapshot to begin.</div>
+    </div>
+    <div class="top-actions">
+      <div class="toggle-tabs" id="periodTabs" style="display:none;">
+        <button data-period="annual" class="active">Annual</button>
+        <button data-period="lifetime">Lifetime</button>
+      </div>
+      <button class="btn ghost" id="themeToggle" title="Toggle theme">🌓 Theme</button>
+      <button class="btn" id="changeFileBtn" style="display:none;">Load different file</button>
+    </div>
+  </header>
+
+  <section id="uploadPanel">
+    <h2>Load a dashboard export</h2>
+    <p>
+      In LandscapeDataManager's Dashboard app, click <strong>Export JSON</strong>, then drop that file here
+      (or use the sample below to preview the layout).
+    </p>
+    <button class="btn primary" id="chooseFileBtn">Choose JSON file</button>
+    <button class="btn ghost" id="sampleBtn">Load sample data</button>
+    <input type="file" id="fileInput" accept="application/json,.json">
+    <div class="hint">Drag &amp; drop a file anywhere on this box. Nothing is uploaded anywhere — parsing happens locally in your browser.</div>
+    <div id="errorBox"></div>
+  </section>
+
+  <main id="dashboard">
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Project location</h3>
+            <div class="panel-sub" id="locationSub">&nbsp;</div>
+          </div>
+        </div>
+        <div id="map"></div>
+        <div id="mapEmpty" style="display:none;">Location wasn't set in Revit's Site Location when this file was exported.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Cost savings composition</h3>
+            <div class="panel-sub">Share of tree-based cost savings by category</div>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <svg id="donut" width="190" height="190" viewBox="0 0 190 190"></svg>
+          <div class="legend" id="donutLegend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Air pollutants removed</h3>
+            <div class="panel-sub" id="pollutantSub">By pollutant, mass removed</div>
+          </div>
+        </div>
+        <div id="pollutantBars"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Top species by carbon sequestered</h3>
+            <div class="panel-sub">Ranked, top 8 shown</div>
+          </div>
+          <div class="toggle-tabs" id="speciesViewTabs">
+            <button data-view="chart" class="active">Chart</button>
+            <button data-view="table">Table</button>
+          </div>
+        </div>
+        <div id="speciesBars"></div>
+        <div class="table-scroll" id="speciesTableWrap" style="display:none;">
+          <table class="data" id="speciesTable"></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-head">
+        <div>
+          <h3>Site &amp; biodiversity</h3>
+          <div class="panel-sub">Canopy, softscape and habitat indicators for the whole site</div>
+        </div>
+      </div>
+      <div class="stat-strip" id="siteKpiStrip"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Planted floor / softscape types</h3>
+          <div class="panel-sub">Annual figures — floor cost has no reliable currency provenance, so it's shown "as calculated"</div>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="data" id="floorTable"></table>
+      </div>
+    </div>
+
+    <footer class="methodology">
+      <strong>How the "equivalent to" figures are calculated:</strong>
+      water → baths at 150 L/bath; CO₂ → miles driven at 0.404 kg CO₂/mile (EPA Greenhouse Gas Equivalencies Calculator,
+      average passenger vehicle); oxygen → days of one person's breathing at ~0.84 kg O₂/day, with tree-sourced oxygen
+      estimated from CO₂ uptake at a 32:44 mass ratio (O₂ released per CO₂ fixed); air pollutants and cost-saved
+      equivalencies (cigarettes, cups of coffee) are illustrative round figures meant for public-facing communication,
+      not regulatory claims — adjust <code>EQUIV</code> in this page's script to your organization's approved source.
+      All mass/volume figures are Metric (kg, m³) regardless of the unit system the export was made under.
+    </footer>
+    <div class="gen-time" id="genTime"></div>
+  </main>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---- Illustrative / cited equivalency factors — adjust to your organization's approved source. ----
+  const EQUIV = {
+    litersPerBath: 150,            // avg bath, commonly cited UK water-efficiency figure (~150 L)
+    kgCo2PerMileDriven: 0.404,     // EPA GHG Equivalencies Calculator — avg passenger vehicle, g/mile basis
+    o2PerCo2MassRatio: 32 / 44,    // stoichiometric: kg O2 released per kg CO2 fixed (molar mass ratio)
+    o2KgPerPersonPerDay: 0.84,     // approx. adult daily oxygen consumption
+    mgPmPerCigaretteEquivalent: 5, // illustrative — adjust to your organization's cited source
+    costPerCoffeeCup: 3,           // illustrative local price point, in the export's currency
+  };
+
+  const PALETTE = {
+    water: 'var(--slot-1)', carbon: 'var(--slot-2)', air: 'var(--slot-3)',
+    oxygen: 'var(--slot-4)', cost: 'var(--slot-5)',
+  };
+
+  const state = { data: null, period: 'annual', speciesView: 'chart', map: null, marker: null };
+
+  const $ = (id) => document.getElementById(id);
+  const tooltip = $('tooltip');
+
+  function showTooltip(evt, html) {
+    tooltip.innerHTML = html;
+    tooltip.style.left = evt.clientX + 'px';
+    tooltip.style.top = evt.clientY + 'px';
+    tooltip.classList.add('show');
+  }
+  function hideTooltip() { tooltip.classList.remove('show'); }
+
+  function compact(n, digits) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: digits ?? 1 }).format(n);
+  }
+  function fixed(n, digits) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: digits ?? 1, minimumFractionDigits: 0 }).format(n);
+  }
+  function pct(n, digits) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    return fixed(n, digits ?? 0) + '%';
+  }
+  function money(n, currency) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(n); }
+    catch { return fixed(n, 0) + ' ' + (currency || ''); }
+  }
+
+  // ---------------- Theme ----------------
+  $('themeToggle').addEventListener('click', () => {
+    const root = document.documentElement;
+    const current = root.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  });
+
+  // ---------------- File loading ----------------
+  const uploadPanel = $('uploadPanel');
+  const fileInput = $('fileInput');
+
+  $('chooseFileBtn').addEventListener('click', () => fileInput.click());
+  $('changeFileBtn').addEventListener('click', () => {
+    $('dashboard').style.display = 'none';
+    uploadPanel.style.display = 'block';
+    $('changeFileBtn').style.display = 'none';
+    $('periodTabs').style.display = 'none';
+    $('headerSub').textContent = 'Upload an exported JSON snapshot to begin.';
+  });
+  fileInput.addEventListener('change', (e) => { if (e.target.files[0]) readFile(e.target.files[0]); });
+
+  ['dragover', 'dragenter'].forEach(evt => uploadPanel.addEventListener(evt, (e) => {
+    e.preventDefault(); uploadPanel.classList.add('dragover');
+  }));
+  ['dragleave', 'drop'].forEach(evt => uploadPanel.addEventListener(evt, (e) => {
+    e.preventDefault(); uploadPanel.classList.remove('dragover');
+  }));
+  uploadPanel.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) readFile(file);
+  });
+
+  // Inlined (kept identical to sample-data/example-export.json) rather than fetch()'d, so
+  // "Load sample data" also works when this page is opened directly as a file:// document —
+  // Chromium blocks fetch() of local files from a file:// origin.
+  const SAMPLE_DATA = {"schemaVersion":1,"project":{"title":"Hereford Station Transport Hub","currency":"GBP","location":{"latitude":52.0567,"longitude":-2.716,"placeName":"Hereford Station, Hereford, UK"},"generatedAt":"2026-09-11T09:30:00Z"},"totals":{"treeCount":48,"treesExcludedFromTotals":2,"carbonSequesteredAnnualKg":1115.0,"carbonSequesteredLifetimeKg":22300.0,"co2EquivalentAnnualKg":1115.0,"co2EquivalentLifetimeKg":22300.0,"runoffAvoidedAnnualM3":105.8,"runoffAvoidedLifetimeM3":2116.0,"rainfallInterceptedAnnualM3":61.4,"rainfallInterceptedLifetimeM3":1228.0,"pollutantsRemovedAnnual":{"pm25Kg":1.9,"no2Kg":1.3,"o3Kg":1.1,"so2Kg":0.61,"coKg":0.7,"totalKg":5.61},"pollutantsRemovedLifetime":{"pm25Kg":38.0,"no2Kg":26.0,"o3Kg":22.0,"so2Kg":12.2,"coKg":14.0,"totalKg":112.2},"treeCostSavedAnnual":2588.0,"treeCostSavedLifetime":51760.0,"carbonCostSavedAnnual":980.0,"carbonCostSavedLifetime":19600.0,"stormWaterCostSavedAnnual":1120.0,"stormWaterCostSavedLifetime":22400.0,"airPollutionCostSavedAnnual":488.0,"airPollutionCostSavedLifetime":9760.0,"floorCount":6,"floorAreaSquareMeters":340.0,"floorCarbonSequesteredAnnualKg":210.0,"floorRunoffAvoidedAnnualM3":48.0,"floorPollutionMassRemovedAnnualKg":0.9,"floorOxygenProducedAnnualKg":8119.0,"floorTotalGwp":1450.0,"floorCostSavedAnnual":788.0},"siteKpi":{"canopyCoverPercent":34.2,"canopyAreaSquareMeters":1860.0,"softscapeSurfaceRatioPercent":41.5,"perviousAreaSquareMeters":2250.0,"distinctSpeciesCount":9,"nativeTreeCount":31,"adaptiveTreeCount":12,"nativeSpeciesRatioPercent":68.0,"distinctBloomMonthsCount":7,"distinctEcologicalFunctionsCount":5,"habitatConnectivityScore":72.0,"lightingFixtureCount":24,"darkSkyCompliantFixtureCount":19,"lightingCompliancePercent":79.2},"species":[{"speciesCode":"ACPL","commonName":"Norway Maple","treeCount":12,"carbonSequesteredAnnualKg":320.0,"carbonSequesteredLifetimeKg":6400.0,"pollutionMassRemovedAnnualKg":1.6,"pollutionMassRemovedLifetimeKg":32.0,"carbonCostSavedAnnual":260.0,"carbonCostSavedLifetime":5200.0,"stormWaterCostSavedAnnual":300.0,"stormWaterCostSavedLifetime":6000.0,"airPollutionCostSavedAnnual":130.0,"airPollutionCostSavedLifetime":2600.0},{"speciesCode":"QURO","commonName":"English Oak","treeCount":8,"carbonSequesteredAnnualKg":280.0,"carbonSequesteredLifetimeKg":5600.0,"pollutionMassRemovedAnnualKg":1.2,"pollutionMassRemovedLifetimeKg":24.0,"carbonCostSavedAnnual":230.0,"carbonCostSavedLifetime":4600.0,"stormWaterCostSavedAnnual":260.0,"stormWaterCostSavedLifetime":5200.0,"airPollutionCostSavedAnnual":100.0,"airPollutionCostSavedLifetime":2000.0},{"speciesCode":"BEPE","commonName":"Silver Birch","treeCount":10,"carbonSequesteredAnnualKg":190.0,"carbonSequesteredLifetimeKg":3800.0,"pollutionMassRemovedAnnualKg":0.9,"pollutionMassRemovedLifetimeKg":18.0,"carbonCostSavedAnnual":160.0,"carbonCostSavedLifetime":3200.0,"stormWaterCostSavedAnnual":180.0,"stormWaterCostSavedLifetime":3600.0,"airPollutionCostSavedAnnual":75.0,"airPollutionCostSavedLifetime":1500.0},{"speciesCode":"TICO","commonName":"Small-Leaved Lime","treeCount":6,"carbonSequesteredAnnualKg":140.0,"carbonSequesteredLifetimeKg":2800.0,"pollutionMassRemovedAnnualKg":0.6,"pollutionMassRemovedLifetimeKg":12.0,"carbonCostSavedAnnual":110.0,"carbonCostSavedLifetime":2200.0,"stormWaterCostSavedAnnual":130.0,"stormWaterCostSavedLifetime":2600.0,"airPollutionCostSavedAnnual":55.0,"airPollutionCostSavedLifetime":1100.0},{"speciesCode":"FRAX","commonName":"Common Ash","treeCount":5,"carbonSequesteredAnnualKg":95.0,"carbonSequesteredLifetimeKg":1900.0,"pollutionMassRemovedAnnualKg":0.5,"pollutionMassRemovedLifetimeKg":10.0,"carbonCostSavedAnnual":80.0,"carbonCostSavedLifetime":1600.0,"stormWaterCostSavedAnnual":90.0,"stormWaterCostSavedLifetime":1800.0,"airPollutionCostSavedAnnual":40.0,"airPollutionCostSavedLifetime":800.0},{"speciesCode":"CABE","commonName":"Hornbeam","treeCount":4,"carbonSequesteredAnnualKg":55.0,"carbonSequesteredLifetimeKg":1100.0,"pollutionMassRemovedAnnualKg":0.35,"pollutionMassRemovedLifetimeKg":7.0,"carbonCostSavedAnnual":45.0,"carbonCostSavedLifetime":900.0,"stormWaterCostSavedAnnual":50.0,"stormWaterCostSavedLifetime":1000.0,"airPollutionCostSavedAnnual":22.0,"airPollutionCostSavedLifetime":440.0},{"speciesCode":"SOAU","commonName":"Whitebeam","treeCount":2,"carbonSequesteredAnnualKg":25.0,"carbonSequesteredLifetimeKg":500.0,"pollutionMassRemovedAnnualKg":0.28,"pollutionMassRemovedLifetimeKg":5.6,"carbonCostSavedAnnual":20.0,"carbonCostSavedLifetime":400.0,"stormWaterCostSavedAnnual":22.0,"stormWaterCostSavedLifetime":440.0,"airPollutionCostSavedAnnual":10.0,"airPollutionCostSavedLifetime":200.0},{"speciesCode":"ILAQ","commonName":"Holly","treeCount":1,"carbonSequesteredAnnualKg":10.0,"carbonSequesteredLifetimeKg":200.0,"pollutionMassRemovedAnnualKg":0.22,"pollutionMassRemovedLifetimeKg":4.4,"carbonCostSavedAnnual":8.0,"carbonCostSavedLifetime":160.0,"stormWaterCostSavedAnnual":9.0,"stormWaterCostSavedLifetime":180.0,"airPollutionCostSavedAnnual":4.0,"airPollutionCostSavedLifetime":80.0}],"floorTypes":[{"ldsType":"Extensive Green Roof","floorCount":3,"areaSquareMeters":210.0,"carbonSequesteredAnnualKg":140.0,"runoffAvoidedAnnualM3":32.0,"pollutionMassRemovedAnnualKg":0.55,"oxygenProducedAnnualKg":5200.0,"totalGwp":900.0,"costSavedAnnual":520.0},{"ldsType":"Permeable Paving","floorCount":2,"areaSquareMeters":95.0,"carbonSequesteredAnnualKg":40.0,"runoffAvoidedAnnualM3":14.0,"pollutionMassRemovedAnnualKg":0.2,"oxygenProducedAnnualKg":1800.0,"totalGwp":380.0,"costSavedAnnual":190.0},{"ldsType":"Rain Garden","floorCount":1,"areaSquareMeters":35.0,"carbonSequesteredAnnualKg":30.0,"runoffAvoidedAnnualM3":2.0,"pollutionMassRemovedAnnualKg":0.15,"oxygenProducedAnnualKg":1119.0,"totalGwp":170.0,"costSavedAnnual":78.0}]};
+
+  $('sampleBtn').addEventListener('click', () => applyData(SAMPLE_DATA));
+
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { applyData(JSON.parse(reader.result)); }
+      catch (err) { showError('That file isn\'t valid JSON (' + err.message + ').'); }
+    };
+    reader.onerror = () => showError('Could not read that file.');
+    reader.readAsText(file);
+  }
+
+  function showError(msg) {
+    const box = $('errorBox');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+
+  function applyData(json) {
+    if (!json || typeof json !== 'object' || !json.totals || !json.project) {
+      showError('This file doesn\'t look like a LandscapeDataManager dashboard export (missing "project"/"totals").');
+      return;
+    }
+    $('errorBox').style.display = 'none';
+    state.data = json;
+    uploadPanel.style.display = 'none';
+    $('dashboard').style.display = 'block';
+    $('changeFileBtn').style.display = 'inline-block';
+    $('periodTabs').style.display = 'flex';
+    renderAll();
+  }
+
+  $('periodTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-period]');
+    if (!btn) return;
+    state.period = btn.dataset.period;
+    [...$('periodTabs').children].forEach(b => b.classList.toggle('active', b === btn));
+    renderAll();
+  });
+
+  $('speciesViewTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if (!btn) return;
+    state.speciesView = btn.dataset.view;
+    [...$('speciesViewTabs').children].forEach(b => b.classList.toggle('active', b === btn));
+    $('speciesBars').style.display = state.speciesView === 'chart' ? 'block' : 'none';
+    $('speciesTableWrap').style.display = state.speciesView === 'table' ? 'block' : 'none';
+  });
+
+  // ---------------- Rendering ----------------
+  function renderAll() {
+    const d = state.data;
+    const isAnnual = state.period === 'annual';
+    const t = d.totals || {};
+    const currency = d.project.currency || 'USD';
+
+    $('headerSub').textContent =
+      (d.project.title || 'Untitled project') + ' · ' + (isAnnual ? 'Annual' : 'Lifetime') + ' benefits · ' + currency;
+    $('genTime').textContent = d.project.generatedAt
+      ? 'Snapshot generated ' + new Date(d.project.generatedAt).toLocaleString()
+      : '';
+
+    const pollutants = isAnnual ? (t.pollutantsRemovedAnnual || {}) : (t.pollutantsRemovedLifetime || {});
+    const co2Kg = isAnnual ? (t.co2EquivalentAnnualKg ?? 0) : (t.co2EquivalentLifetimeKg ?? 0);
+    const runoffM3 = isAnnual ? (t.runoffAvoidedAnnualM3 ?? 0) : (t.runoffAvoidedLifetimeM3 ?? 0);
+    const treeCost = isAnnual ? (t.treeCostSavedAnnual ?? 0) : (t.treeCostSavedLifetime ?? 0);
+    const pollutantTotalKg = pollutants.totalKg ?? 0;
+
+    // Oxygen: tree-sourced (stoichiometric from CO2 uptake) + floor/green-roof measured production (annual-only source data).
+    const oxygenKg = co2Kg * EQUIV.o2PerCo2MassRatio + (t.floorOxygenProducedAnnualKg ?? 0);
+
+    renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, treeCost, currency });
+    renderLocation(d.project.location);
+    renderCostDonut(isAnnual, t, currency);
+    renderPollutantBars(pollutants);
+    renderSpecies(d.species || [], isAnnual, currency);
+    renderSiteKpi(d.siteKpi || {});
+    renderFloorTable(d.floorTypes || []);
+  }
+
+  function kpiIcon(kind) {
+    const icons = {
+      water: '<path d="M10 1c3 4 6 7.5 6 11a6 6 0 1 1-12 0c0-3.5 3-7 6-11z"/>',
+      carbon: '<path d="M10 2c1 3-2 4-2 7a4 4 0 1 0 8 0c0-1.5-1-2.3-1.8-3 .3 2-1 2.6-1 4a2 2 0 1 1-4 0c0-3 1.8-4.3.8-8z"/>',
+      air: '<circle cx="6" cy="8" r="2.4"/><circle cx="12" cy="6" r="2.4"/><circle cx="14" cy="11" r="2.2"/><rect x="3" y="10" width="14" height="4" rx="2"/>',
+      oxygen: '<path d="M10 2c-2 3-3 6-3 9a4 4 0 0 0 8 0c0-1-.3-2-1-3.3C13.6 9 13 8 12 8c.6 1.3.2 2-1 2s-1.6-1-1-2.3C10.6 6.3 10.3 5.2 10 2z"/>',
+      cost: '<circle cx="10" cy="10" r="7.5" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M10 5.5v9M12.5 7.6c0-1-1-1.6-2.5-1.6s-2.4.7-2.4 1.7c0 2.4 5 1 5 3.4 0 1-1 1.7-2.6 1.7s-2.6-.7-2.6-1.8" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>',
+    };
+    return '<svg class="icon" viewBox="0 0 20 20" fill="#fff">' + icons[kind] + '</svg>';
+  }
+
+  function renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, treeCost, currency }) {
+    const baths = (runoffM3 * 1000) / EQUIV.litersPerBath;
+    const miles = co2Kg / EQUIV.kgCo2PerMileDriven;
+    const cigarettes = (pollutantTotalKg * 1e6) / EQUIV.mgPmPerCigaretteEquivalent;
+    const breathingDays = oxygenKg / EQUIV.o2KgPerPersonPerDay;
+    const coffees = treeCost / EQUIV.costPerCoffeeCup;
+
+    const cards = [
+      { c: 'c1', icon: 'water', label: 'Avoided water run-off', value: fixed(runoffM3 * 1000, 0) + ' L', equiv: compact(baths, 0) + ' baths' },
+      { c: 'c2', icon: 'carbon', label: 'CO₂ sequestration', value: fixed(co2Kg, 0) + ' kg', equiv: 'driving ' + compact(miles, 0) + ' mi' },
+      { c: 'c3', icon: 'air', label: 'Air pollutants removed', value: fixed(pollutantTotalKg, 1) + ' kg', equiv: compact(cigarettes, 1) + ' cigarettes*' },
+      { c: 'c4', icon: 'oxygen', label: 'Air generated (O₂)', value: fixed(oxygenKg, 0) + ' kg', equiv: compact(breathingDays, 0) + ' days of breathing' },
+      { c: 'c5', icon: 'cost', label: 'Cost saved', value: money(treeCost, currency), equiv: compact(coffees, 0) + ' cups of coffee*' },
+    ];
+
+    $('kpiRow').innerHTML = cards.map(c => `
+      <div class="kpi-card ${c.c}">
+        <div class="label">${kpiIcon(c.icon)} ${c.label}</div>
+        <div class="value">${c.value}</div>
+        <div class="equiv"><span class="arrow">≈</span> ${c.equiv}</div>
+      </div>`).join('');
+  }
+
+  // ---------------- Map ----------------
+  function renderLocation(loc) {
+    const hasLoc = loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number'
+      && !(loc.latitude === 0 && loc.longitude === 0);
+    $('locationSub').textContent = hasLoc
+      ? (loc.placeName || (loc.latitude.toFixed(4) + ', ' + loc.longitude.toFixed(4)))
+      : 'No location set';
+
+    $('map').style.display = hasLoc ? 'block' : 'none';
+    $('mapEmpty').style.display = hasLoc ? 'none' : 'flex';
+    if (!hasLoc) return;
+
+    if (!state.map) {
+      state.map = L.map('map', { scrollWheelZoom: false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(state.map);
+    }
+    state.map.setView([loc.latitude, loc.longitude], 15);
+    if (state.marker) state.marker.remove();
+    state.marker = L.marker([loc.latitude, loc.longitude]).addTo(state.map)
+      .bindPopup(loc.placeName || 'Project site').openPopup();
+    setTimeout(() => state.map.invalidateSize(), 50);
+  }
+
+  // ---------------- Donut ----------------
+  function renderCostDonut(isAnnual, t, currency) {
+    const segs = [
+      { key: 'carbon', label: 'Carbon uptake', color: PALETTE.carbon,
+        v: isAnnual ? (t.carbonCostSavedAnnual ?? 0) : (t.carbonCostSavedLifetime ?? 0) },
+      { key: 'water', label: 'Storm water', color: PALETTE.water,
+        v: isAnnual ? (t.stormWaterCostSavedAnnual ?? 0) : (t.stormWaterCostSavedLifetime ?? 0) },
+      { key: 'air', label: 'Air pollution', color: PALETTE.air,
+        v: isAnnual ? (t.airPollutionCostSavedAnnual ?? 0) : (t.airPollutionCostSavedLifetime ?? 0) },
+    ];
+    const total = segs.reduce((s, x) => s + Math.max(0, x.v), 0);
+
+    const svg = $('donut');
+    const r = 78, cx = 95, cy = 95, thickness = 20;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+    let parts = '';
+    segs.forEach(seg => {
+      const frac = total > 0 ? Math.max(0, seg.v) / total : 0;
+      const gap = 2; // surface-color spacer between segments
+      const len = Math.max(0, frac * circumference - gap);
+      parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${thickness}"
+        stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}" stroke-linecap="round"
+        data-tip="${seg.label}: ${money(seg.v, currency)} (${(frac * 100).toFixed(0)}%)" class="donut-seg"/>`;
+      offset += frac * circumference;
+    });
+    svg.innerHTML = parts +
+      `<text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="var(--text-primary)"
+         style="font-size:20px;font-weight:700;">${money(total, currency)}</text>
+       <text x="${cx}" y="${cy + 16}" text-anchor="middle" fill="var(--text-muted)" style="font-size:10px;letter-spacing:.03em;text-transform:uppercase;">total saved</text>`;
+
+    svg.querySelectorAll('.donut-seg').forEach(el => {
+      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
+      el.addEventListener('mouseleave', hideTooltip);
+    });
+
+    $('donutLegend').innerHTML = segs.map(seg => {
+      const frac = total > 0 ? (Math.max(0, seg.v) / total) * 100 : 0;
+      return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
+        <span class="name">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+    }).join('');
+  }
+
+  // ---------------- Pollutant bars ----------------
+  function renderPollutantBars(p) {
+    const rows = [
+      { label: 'PM2.5', v: p.pm25Kg ?? 0 },
+      { label: 'NO₂', v: p.no2Kg ?? 0 },
+      { label: 'O₃', v: p.o3Kg ?? 0 },
+      { label: 'SO₂', v: p.so2Kg ?? 0 },
+      { label: 'CO', v: p.coKg ?? 0 },
+    ];
+    const max = Math.max(1e-9, ...rows.map(r => r.v));
+    $('pollutantBars').innerHTML = rows.map(r => `
+      <div class="bar-row">
+        <div class="name">${r.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(r.v / max * 100).toFixed(1)}%;background:${PALETTE.air}"></div></div>
+        <div class="val">${fixed(r.v, 2)} kg</div>
+      </div>`).join('');
+  }
+
+  // ---------------- Species ----------------
+  function renderSpecies(species, isAnnual, currency) {
+    const rows = species.map(s => ({
+      name: s.commonName || s.speciesCode || 'Unassigned',
+      code: s.speciesCode || '—',
+      trees: s.treeCount ?? 0,
+      carbon: isAnnual ? (s.carbonSequesteredAnnualKg ?? 0) : (s.carbonSequesteredLifetimeKg ?? 0),
+      pollution: isAnnual ? (s.pollutionMassRemovedAnnualKg ?? 0) : (s.pollutionMassRemovedLifetimeKg ?? 0),
+      cost: isAnnual
+        ? (s.carbonCostSavedAnnual ?? 0) + (s.stormWaterCostSavedAnnual ?? 0) + (s.airPollutionCostSavedAnnual ?? 0)
+        : (s.carbonCostSavedLifetime ?? 0) + (s.stormWaterCostSavedLifetime ?? 0) + (s.airPollutionCostSavedLifetime ?? 0),
+    })).sort((a, b) => b.carbon - a.carbon);
+
+    const top = rows.slice(0, 8);
+    const max = Math.max(1e-9, ...top.map(r => r.carbon));
+    $('speciesBars').innerHTML = top.map(r => `
+      <div class="bar-row">
+        <div class="name" title="${r.name}">${r.name}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(r.carbon / max * 100).toFixed(1)}%;background:${PALETTE.carbon}"></div></div>
+        <div class="val">${fixed(r.carbon, 0)} kg</div>
+      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">No species data in this export.</p>';
+
+    const table = $('speciesTable');
+    table.innerHTML = `
+      <thead><tr><th>Species</th><th class="num">Trees</th><th class="num">Carbon (kg)</th>
+        <th class="num">Pollutants (kg)</th><th class="num">Cost saved</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td>${r.name}</td><td class="num">${fixed(r.trees, 0)}</td>
+        <td class="num">${fixed(r.carbon, 1)}</td><td class="num">${fixed(r.pollution, 2)}</td>
+        <td class="num">${money(r.cost, currency)}</td></tr>`).join('')}</tbody>`;
+  }
+
+  // ---------------- Site & biodiversity ----------------
+  function renderSiteKpi(k) {
+    const tiles = [
+      { l: 'Canopy cover', v: k.canopyCoverPercent != null ? pct(k.canopyCoverPercent) : 'Not entered' },
+      { l: 'Softscape ratio', v: k.softscapeSurfaceRatioPercent != null ? pct(k.softscapeSurfaceRatioPercent) : 'Not entered' },
+      { l: 'Distinct species', v: fixed(k.distinctSpeciesCount ?? 0, 0) },
+      { l: 'Native species share', v: k.nativeSpeciesRatioPercent != null ? pct(k.nativeSpeciesRatioPercent) : '—' },
+      { l: 'Bloom months covered', v: fixed(k.distinctBloomMonthsCount ?? 0, 0) + ' / 12' },
+      { l: 'Dark-sky compliant lighting', v: k.lightingCompliancePercent != null ? pct(k.lightingCompliancePercent) : '—' },
+    ];
+    $('siteKpiStrip').innerHTML = tiles.map(t => `
+      <div class="stat-tile"><div class="v">${t.v}</div><div class="l">${t.l}</div></div>`).join('');
+  }
+
+  // ---------------- Floor types ----------------
+  function renderFloorTable(floors) {
+    const table = $('floorTable');
+    if (!floors.length) {
+      table.innerHTML = '<tbody><tr><td style="color:var(--text-muted);">No floor / softscape data in this export.</td></tr></tbody>';
+      return;
+    }
+    table.innerHTML = `
+      <thead><tr><th>LDS type</th><th class="num">Floors</th><th class="num">Area (m²)</th>
+        <th class="num">Carbon (kg/yr)</th><th class="num">Run-off avoided (m³/yr)</th>
+        <th class="num">O₂ produced (kg/yr)</th><th class="num">Cost saved</th></tr></thead>
+      <tbody>${floors.map(f => `<tr><td>${f.ldsType}</td><td class="num">${fixed(f.floorCount, 0)}</td>
+        <td class="num">${fixed(f.areaSquareMeters, 1)}</td><td class="num">${fixed(f.carbonSequesteredAnnualKg, 1)}</td>
+        <td class="num">${fixed(f.runoffAvoidedAnnualM3, 1)}</td><td class="num">${fixed(f.oxygenProducedAnnualKg, 1)}</td>
+        <td class="num">${fixed(f.costSavedAnnual, 0)} (as calculated)</td></tr>`).join('')}</tbody>`;
+  }
+
+})();
+</script>
+</body>
+</html>

@@ -7,52 +7,50 @@
 <style>
   :root {
     color-scheme: light;
-    --surface-1:   #fcfcfb;
+    --surface-1:   #f6f8f5;
     --surface-2:   #ffffff;
-    --page:        #f9f9f7;
-    --text-primary:   #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted:     #898781;
-    --gridline:    #e1e0d9;
-    --baseline:    #c3c2b7;
-    --border:      rgba(11,11,11,0.10);
-    --slot-1: #2a78d6; /* blue    -> water / stormwater */
-    --slot-2: #eb6834; /* orange  -> carbon / CO2 */
-    --slot-3: #1baf7a; /* aqua    -> air / pollutants */
-    --slot-4: #eda100; /* yellow  -> oxygen / air generated */
-    --slot-5: #e87ba4; /* magenta -> cost saved */
-    --slot-1-wash: rgba(42,120,214,0.10);
-    --slot-2-wash: rgba(235,104,52,0.10);
-    --slot-3-wash: rgba(27,175,122,0.10);
-    --slot-4-wash: rgba(237,161,0,0.10);
-    --slot-5-wash: rgba(232,123,164,0.10);
-    /* Status pair, not categorical — signals "which period is currently shown", same green in both modes. */
-    --active: #0ca30c;
-    --inactive: #c3c2b7;
+    --page:        #f2f4f1;
+    --text-primary:   #17211a;
+    --text-secondary: #52604f;
+    --text-muted:     #7c8779;
+    --gridline:    #e2e8de;
+    --baseline:    #c7d0c3;
+    --border:      rgba(20,30,20,0.10);
+    /* Brand green family — this page is "mostly green", not categorical rainbow. */
+    --brand-900: #123a1b;
+    --brand-700: #176b2b; /* primary brand green, matches the desktop app's own carbon-benefit green */
+    --brand-500: #2e8b45;
+    --brand-300: #6fbf7f;
+    --brand-wash: rgba(23,107,43,0.10);
+    --brand-wash-strong: rgba(23,107,43,0.16);
+    --gold: #e8b93e; /* hero-total accent, on the dark hero bar only */
+    --hero-bg: #14201a;
+    --active: var(--brand-500);
+    --inactive: #c7d0c3;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
       color-scheme: dark;
-      --surface-1: #1a1a19; --surface-2: #202020; --page: #0d0d0d;
-      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
-      --gridline: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
-      --slot-1: #3987e5; --slot-2: #d95926; --slot-3: #199e70; --slot-4: #c98500; --slot-5: #d55181;
-      --slot-1-wash: rgba(57,135,229,0.14); --slot-2-wash: rgba(217,89,38,0.14);
-      --slot-3-wash: rgba(25,158,112,0.14); --slot-4-wash: rgba(201,133,0,0.14); --slot-5-wash: rgba(213,81,129,0.14);
-      --active: #0ca30c;
-      --inactive: #55544f;
+      --surface-1: #171d18; --surface-2: #1e251f; --page: #10140f;
+      --text-primary: #f1f5ef; --text-secondary: #b9c4b4; --text-muted: #82907d;
+      --gridline: #2c352b; --baseline: #3b463a; --border: rgba(255,255,255,0.10);
+      --brand-900: #0d2412; --brand-700: #2c8a41; --brand-500: #4caf62; --brand-300: #7fd08f;
+      --brand-wash: rgba(76,175,98,0.14); --brand-wash-strong: rgba(76,175,98,0.22);
+      --gold: #f0c65a; --hero-bg: #0c1210;
+      --active: var(--brand-500);
+      --inactive: #454f43;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --surface-1: #1a1a19; --surface-2: #202020; --page: #0d0d0d;
-    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
-    --gridline: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
-    --slot-1: #3987e5; --slot-2: #d95926; --slot-3: #199e70; --slot-4: #c98500; --slot-5: #d55181;
-    --slot-1-wash: rgba(57,135,229,0.14); --slot-2-wash: rgba(217,89,38,0.14);
-    --slot-3-wash: rgba(25,158,112,0.14); --slot-4-wash: rgba(201,133,0,0.14); --slot-5-wash: rgba(213,81,129,0.14);
-    --active: #0ca30c;
-    --inactive: #55544f;
+    --surface-1: #171d18; --surface-2: #1e251f; --page: #10140f;
+    --text-primary: #f1f5ef; --text-secondary: #b9c4b4; --text-muted: #82907d;
+    --gridline: #2c352b; --baseline: #3b463a; --border: rgba(255,255,255,0.10);
+    --brand-900: #0d2412; --brand-700: #2c8a41; --brand-500: #4caf62; --brand-300: #7fd08f;
+    --brand-wash: rgba(76,175,98,0.14); --brand-wash-strong: rgba(76,175,98,0.22);
+    --gold: #f0c65a; --hero-bg: #0c1210;
+    --active: var(--brand-500);
+    --inactive: #454f43;
   }
 
   * { box-sizing: border-box; }
@@ -63,7 +61,7 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     padding: 0 max(16px, env(safe-area-inset-left)) 48px max(16px, env(safe-area-inset-right));
   }
-  a { color: var(--slot-1); }
+  a { color: var(--brand-700); }
 
   .shell { max-width: 1180px; margin: 0 auto; }
 
@@ -71,7 +69,12 @@
     display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
     padding: 20px 0 16px;
   }
-  header.top .brand { display: flex; flex-direction: column; gap: 2px; }
+  header.top .brand { display: flex; align-items: center; gap: 12px; }
+  header.top .brand-mark {
+    width: 34px; height: 34px; flex: none; border-radius: 9px; background: var(--brand-700);
+    display: flex; align-items: center; justify-content: center;
+  }
+  header.top .brand-mark svg { width: 19px; height: 19px; }
   header.top h1 { font-size: 20px; margin: 0; font-weight: 700; letter-spacing: 0.01em; }
   header.top .sub { font-size: 13px; color: var(--text-secondary); }
   .top-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -82,7 +85,7 @@
     color: var(--text-primary); padding: 8px 14px;
   }
   button.btn:hover { background: var(--surface-1); }
-  button.btn.primary { background: var(--slot-1); border-color: var(--slot-1); color: #fff; }
+  button.btn.primary { background: var(--brand-700); border-color: var(--brand-700); color: #fff; }
   button.btn.ghost { background: transparent; }
 
   /* --- Upload panel --- */
@@ -90,7 +93,7 @@
     border: 2px dashed var(--baseline); border-radius: 16px; background: var(--surface-2);
     padding: 48px 24px; text-align: center; margin-top: 12px;
   }
-  #uploadPanel.dragover { border-color: var(--slot-1); background: var(--slot-1-wash); }
+  #uploadPanel.dragover { border-color: var(--brand-700); background: var(--brand-wash); }
   #uploadPanel h2 { margin: 0 0 6px; font-size: 18px; }
   #uploadPanel p { margin: 0 0 18px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
   #uploadPanel .hint { margin-top: 14px; font-size: 12px; color: var(--text-muted); }
@@ -132,11 +135,14 @@
   .translate-connector { display: flex; align-items: center; justify-content: center; }
   .translate-connector svg { width: 100%; height: 28px; }
 
-  .translate-row.m-water .translate-pill { background: linear-gradient(160deg, var(--slot-1), color-mix(in srgb, var(--slot-1) 65%, black)); }
-  .translate-row.m-carbon .translate-pill { background: linear-gradient(160deg, var(--slot-2), color-mix(in srgb, var(--slot-2) 65%, black)); }
-  .translate-row.m-air .translate-pill { background: linear-gradient(160deg, var(--slot-3), color-mix(in srgb, var(--slot-3) 65%, black)); }
-  .translate-row.m-oxygen .translate-pill { background: linear-gradient(160deg, var(--slot-4), color-mix(in srgb, var(--slot-4) 60%, black)); }
-  .translate-row.m-cost .translate-pill { background: linear-gradient(160deg, var(--slot-5), color-mix(in srgb, var(--slot-5) 65%, black)); }
+  /* Mostly-green family across four rows — icon + label carry each metric's identity, not hue — with
+     Cost Saved singled out as the dark/gold "hero" row, echoing the app's own dark hero-total bar. */
+  .translate-row.m-water .translate-pill { background: linear-gradient(160deg, var(--brand-500), color-mix(in srgb, var(--brand-500) 60%, black)); }
+  .translate-row.m-carbon .translate-pill { background: linear-gradient(160deg, var(--brand-700), color-mix(in srgb, var(--brand-700) 65%, black)); }
+  .translate-row.m-air .translate-pill { background: linear-gradient(160deg, var(--brand-900), color-mix(in srgb, var(--brand-900) 70%, black)); }
+  .translate-row.m-oxygen .translate-pill { background: linear-gradient(160deg, color-mix(in srgb, var(--brand-300) 75%, black), color-mix(in srgb, var(--brand-300) 45%, black)); }
+  .translate-row.m-cost .translate-pill { background: linear-gradient(160deg, var(--hero-bg), color-mix(in srgb, var(--hero-bg) 70%, black)); color: var(--gold); }
+  .translate-row.m-cost .translate-pill .translate-value { color: var(--gold); }
 
   /* --- Panels / grid --- */
   .grid-2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 14px; margin-bottom: 14px; }
@@ -154,7 +160,7 @@
   #regionMapHost { position: relative; height: 320px; border-radius: 10px; margin-top: 4px; background: var(--surface-1); overflow: hidden; }
   #regionMapHost svg { width: 100%; height: 100%; display: block; }
   .region-shape { fill: var(--gridline); stroke: var(--surface-1); stroke-width: 1; }
-  .region-shape.highlight { fill: var(--slot-1); stroke: var(--text-primary); stroke-width: 1.4; }
+  .region-shape.highlight { fill: var(--brand-700); stroke: var(--text-primary); stroke-width: 1.4; }
   .region-pin { fill: var(--text-primary); stroke: var(--surface-1); stroke-width: 1.5; }
   .region-status {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -162,7 +168,7 @@
   }
   .region-spinner {
     width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--gridline);
-    border-top-color: var(--slot-1); animation: region-spin 0.8s linear infinite;
+    border-top-color: var(--brand-700); animation: region-spin 0.8s linear infinite;
   }
   @keyframes region-spin { to { transform: rotate(360deg); } }
 
@@ -224,8 +230,13 @@
 
   <header class="top">
     <div class="brand">
-      <h1>Landscape Co-Benefits Dashboard</h1>
-      <div class="sub" id="headerSub">Upload an exported JSON snapshot to begin.</div>
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="#fff"><path d="M10 1c3 5 7 8.5 7 13a7 7 0 0 1-14 0c0-4.5 4-8 7-13z"/></svg>
+      </div>
+      <div>
+        <h1>Landscape Co-Benefits Dashboard</h1>
+        <div class="sub" id="headerSub">Upload an exported JSON snapshot to begin.</div>
+      </div>
     </div>
     <div class="top-actions">
       <div class="toggle-tabs" id="scenarioTabs" style="display:none;"></div>
@@ -277,6 +288,16 @@
       <div class="growth-chart-wrap">
         <div id="growthCurveHost"></div>
       </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-head">
+        <div>
+          <h3>Site &amp; biodiversity</h3>
+          <div class="panel-sub">Canopy, softscape and habitat indicators for the whole site</div>
+        </div>
+      </div>
+      <div class="stat-strip" id="siteKpiStrip"></div>
     </div>
 
     <div class="grid-2">
@@ -333,16 +354,6 @@
       </div>
     </div>
 
-    <div class="panel" style="margin-bottom:14px;">
-      <div class="panel-head">
-        <div>
-          <h3>Site &amp; biodiversity</h3>
-          <div class="panel-sub">Canopy, softscape and habitat indicators for the whole site</div>
-        </div>
-      </div>
-      <div class="stat-strip" id="siteKpiStrip"></div>
-    </div>
-
     <div class="panel">
       <div class="panel-head">
         <div>
@@ -390,9 +401,12 @@
     costPerCoffeeCup: 3,           // illustrative local price point, in the export's currency
   };
 
+  // Mostly-green family, not a categorical rainbow — each metric gets its own step of the brand
+  // green ramp (Cost Saved is the one deliberate exception, gold, echoing the app's own hero-total
+  // treatment), so a translation card's color and "its" growth chart always match.
   const PALETTE = {
-    water: 'var(--slot-1)', carbon: 'var(--slot-2)', air: 'var(--slot-3)',
-    oxygen: 'var(--slot-4)', cost: 'var(--slot-5)',
+    water: 'var(--brand-500)', carbon: 'var(--brand-700)', air: 'var(--brand-900)',
+    oxygen: 'var(--brand-300)', cost: 'var(--gold)',
   };
 
   // The metric the two "Growth over time" / "Growth curve" panels plot — selected by clicking a

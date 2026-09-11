@@ -1,15 +1,17 @@
 # Landscape Co-Benefits Dashboard
 
 A single self-contained HTML page that turns a **LandscapeDataManager** JSON
-export into a PowerBI-style dashboard: carbon / storm water / air-pollution
-metrics translated into everyday equivalents (paired cards — raw value on
-the left, its everyday equivalent on the right — joined by a wavy connector),
-an abstract country map with the project's specific region highlighted, a
-cost-savings donut, pollutant and species bar charts, site & biodiversity
-stats, a floor/softscape breakdown table, and a **growth-year selector** for
-projects that model the same planted layout at different tree ages via Revit
-design options (e.g. 5/10/15/20/25 years) — click any translation card to
-drive the growth bar/curve charts by that metric.
+export into a PowerBI-style dashboard, styled to match the LandscapeDataManager
+Dashboard app itself (mostly green, a gold hero accent for money, white cards):
+carbon / storm water / air-pollution metrics translated into everyday
+equivalents (paired cards — raw value on the left, its everyday equivalent on
+the right — joined by a wavy connector), an abstract country map with the
+project's specific region highlighted, a cost-savings donut, pollutant and
+species bar charts, site & biodiversity stats, a floor/softscape breakdown
+table, and a **growth-year selector** for projects that model the same planted
+layout at different tree ages via Revit design options (e.g. 5/10/15/20/25
+years) — click any translation card to drive the growth bar/curve charts by
+that metric.
 
 No backend, no build step, no signup — open `index.html` in a browser (or
 host it on GitHub Pages) and drop in a JSON file. Parsing happens entirely in

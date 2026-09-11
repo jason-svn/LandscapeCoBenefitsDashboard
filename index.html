@@ -381,8 +381,20 @@
             <h3>Air pollutants removed</h3>
             <div class="panel-sub" id="pollutantSub">By pollutant, mass removed</div>
           </div>
+          <div class="toggle-tabs" id="pollutantViewTabs">
+            <button data-view="chart" class="active">Chart</button>
+            <button data-view="pie">Pie</button>
+            <button data-view="table">Table</button>
+          </div>
         </div>
         <div id="pollutantBars"></div>
+        <div class="donut-wrap" id="pollutantPieWrap" style="display:none;">
+          <svg id="pollutantPie" width="170" height="170" viewBox="0 0 170 170"></svg>
+          <div class="legend" id="pollutantPieLegend"></div>
+        </div>
+        <div class="table-scroll" id="pollutantTableWrap" style="display:none;">
+          <table class="data" id="pollutantTable"></table>
+        </div>
       </div>
 
       <div class="panel">
@@ -520,7 +532,7 @@
     },
   };
 
-  const state = { data: null, period: 'annual', speciesView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
+  const state = { data: null, period: 'annual', speciesView: 'chart', pollutantView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
 
   // ISO 3166-1 alpha-2 -> alpha-3, standard reference table (stable, does not change) — bridges the
   // reverse-geocoder's alpha-2 country code to geoBoundaries' alpha-3 lookup key.
@@ -718,6 +730,16 @@
     $('speciesBars').style.display = state.speciesView === 'chart' ? 'block' : 'none';
     $('speciesPieWrap').style.display = state.speciesView === 'pie' ? 'flex' : 'none';
     $('speciesTableWrap').style.display = state.speciesView === 'table' ? 'block' : 'none';
+  });
+
+  $('pollutantViewTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if (!btn) return;
+    state.pollutantView = btn.dataset.view;
+    [...$('pollutantViewTabs').children].forEach(b => b.classList.toggle('active', b === btn));
+    $('pollutantBars').style.display = state.pollutantView === 'chart' ? 'block' : 'none';
+    $('pollutantPieWrap').style.display = state.pollutantView === 'pie' ? 'flex' : 'none';
+    $('pollutantTableWrap').style.display = state.pollutantView === 'table' ? 'block' : 'none';
   });
 
   // ---------------- Rendering ----------------
@@ -1177,7 +1199,12 @@
     }).join('');
   }
 
-  // ---------------- Pollutant bars ----------------
+  // ---------------- Air pollutants: bar chart, pie chart, table ----------------
+  // The five pollutants are always the same five identities across every project, so (unlike
+  // species, whose lineup varies per file) each gets a genuinely fixed pastel slot rather than one
+  // assigned by rank — same convention as the cost-savings donut's fixed category-to-slot mapping.
+  const POLLUTANT_COLORS = { 'PM2.5': '--cat-1', 'NO₂': '--cat-2', 'O₃': '--cat-3', 'SO₂': '--cat-4', 'CO': '--cat-5' };
+
   function renderPollutantBars(p) {
     const rows = [
       { label: 'PM2.5', v: p.pm25Kg ?? 0 },
@@ -1186,13 +1213,55 @@
       { label: 'SO₂', v: p.so2Kg ?? 0 },
       { label: 'CO', v: p.coKg ?? 0 },
     ];
+    rows.forEach((r) => { r.color = `var(${POLLUTANT_COLORS[r.label]})`; });
+
     const max = Math.max(1e-9, ...rows.map(r => r.v));
     $('pollutantBars').innerHTML = rows.map(r => `
       <div class="bar-row">
-        <div class="name">${r.label}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(r.v / max * 100).toFixed(1)}%;background:${PALETTE.air}"></div></div>
+        <div class="name"><span class="species-dot" style="background:${r.color}"></span>${r.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(r.v / max * 100).toFixed(1)}%;background:${r.color}"></div></div>
         <div class="val">${fixed(r.v, 2)} kg</div>
       </div>`).join('');
+
+    const table = $('pollutantTable');
+    table.innerHTML = `
+      <thead><tr><th>Pollutant</th><th class="num">Mass removed (kg)</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td><span class="species-dot" style="background:${r.color}"></span>${r.label}</td>
+        <td class="num">${fixed(r.v, 2)}</td></tr>`).join('')}</tbody>`;
+
+    renderPollutantPie(rows);
+  }
+
+  function renderPollutantPie(rows) {
+    const total = rows.reduce((s, r) => s + Math.max(0, r.v), 0);
+    const svg = $('pollutantPie');
+    const r = 66, cx = 85, cy = 85, thickness = 18;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+    let parts = '';
+    rows.forEach((seg) => {
+      const frac = total > 0 ? Math.max(0, seg.v) / total : 0;
+      const gap = frac > 0 ? 2 : 0;
+      const len = Math.max(0, frac * circumference - gap);
+      parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${thickness}"
+        stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}" stroke-linecap="round"
+        data-tip="${escapeAttr(seg.label)}: ${fixed(seg.v, 2)} kg (${(frac * 100).toFixed(0)}%)" class="donut-seg"/>`;
+      offset += frac * circumference;
+    });
+    svg.innerHTML = parts +
+      `<text x="${cx}" y="${cy - 2}" text-anchor="middle" fill="var(--text-primary)" style="font-size:16px;font-weight:700;">${fixed(total, 1)}</text>
+       <text x="${cx}" y="${cy + 15}" text-anchor="middle" fill="var(--text-muted)" style="font-size:9px;letter-spacing:.03em;text-transform:uppercase;">kg removed</text>`;
+
+    svg.querySelectorAll('.donut-seg').forEach((el) => {
+      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
+      el.addEventListener('mouseleave', hideTooltip);
+    });
+
+    $('pollutantPieLegend').innerHTML = rows.map((seg) => {
+      const frac = total > 0 ? (Math.max(0, seg.v) / total) * 100 : 0;
+      return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
+        <span class="name">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+    }).join('');
   }
 
   // ---------------- Species ----------------

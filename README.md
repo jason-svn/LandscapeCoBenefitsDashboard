@@ -10,10 +10,11 @@ with the project's specific region highlighted, a "most impactful tree"
 highlight card (top species by carbon sequestered, with a real reference
 photo), and a pastel categorical palette (distinct from the page's brand
 green) for anything that identifies categories rather than magnitude: the
-cost-savings donut, the species-composition donut, and per-species colors
-shared across the species bar chart, its own carbon-share pie chart, and its
-table — plus ratio meters for canopy/softscape/native/lighting stats and a
-floor/softscape breakdown table. Near the bottom, a
+cost-savings donut, the species-composition donut, per-species colors shared
+across the species bar/pie/table views, and per-pollutant colors shared
+across the air-pollutants bar/pie/table views — plus ratio meters for
+canopy/softscape/native/lighting stats and a floor/softscape breakdown table.
+Near the bottom, a
 **growth-year selector** (for projects that model the same planted layout at
 different tree ages via Revit design options, e.g. 5/10/15/20/25 years) sits
 beside the translation cards — click any card to drive the growth bar/curve

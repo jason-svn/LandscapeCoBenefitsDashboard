@@ -2,16 +2,17 @@
 
 A single self-contained HTML page that turns a **LandscapeDataManager** JSON
 export into a PowerBI-style dashboard, styled to match the LandscapeDataManager
-Dashboard app itself (mostly green, a gold hero accent for money, white cards):
-carbon / storm water / air-pollution metrics translated into everyday
-equivalents (paired cards — raw value on the left, its everyday equivalent on
-the right — joined by a wavy connector), an abstract country map with the
-project's specific region highlighted, a cost-savings donut, pollutant and
-species bar charts, site & biodiversity stats, a floor/softscape breakdown
-table, and a **growth-year selector** for projects that model the same planted
-layout at different tree ages via Revit design options (e.g. 5/10/15/20/25
-years) — click any translation card to drive the growth bar/curve charts by
-that metric.
+Dashboard app itself (mostly green, quiet shadcn-style neutral cards, a gold
+accent for money): carbon / storm water / air-pollution metrics translated
+into everyday equivalents (paired cards — raw value on the left, its everyday
+equivalent on the right — joined by a wavy connector), an abstract country map
+with the project's specific region highlighted, a cost-savings donut, a
+species-composition donut plus ratio meters for canopy/softscape/native/
+lighting stats, pollutant and species bar charts, and a floor/softscape
+breakdown table. Near the bottom, a **growth-year selector** (for projects
+that model the same planted layout at different tree ages via Revit design
+options, e.g. 5/10/15/20/25 years) sits beside the translation cards — click
+any card to drive the growth bar/curve charts by that metric.
 
 No backend, no build step, no signup — open `index.html` in a browser (or
 host it on GitHub Pages) and drop in a JSON file. Parsing happens entirely in

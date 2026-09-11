@@ -24,6 +24,7 @@
     --brand-wash: rgba(23,107,43,0.10);
     --brand-wash-strong: rgba(23,107,43,0.16);
     --gold: #e8b93e; /* hero-total accent, on the dark hero bar only */
+    --gold-ink: #96700f; /* same accent, darkened for text/icons on a light surface */
     --hero-bg: #14201a;
     --active: var(--brand-500);
     --inactive: #c7d0c3;
@@ -36,7 +37,7 @@
       --gridline: #2c352b; --baseline: #3b463a; --border: rgba(255,255,255,0.10);
       --brand-900: #0d2412; --brand-700: #2c8a41; --brand-500: #4caf62; --brand-300: #7fd08f;
       --brand-wash: rgba(76,175,98,0.14); --brand-wash-strong: rgba(76,175,98,0.22);
-      --gold: #f0c65a; --hero-bg: #0c1210;
+      --gold: #f0c65a; --gold-ink: #f0c65a; --hero-bg: #0c1210;
       --active: var(--brand-500);
       --inactive: #454f43;
     }
@@ -115,34 +116,41 @@
   }
   .translate-row:hover { transform: translateY(-1px); }
   .translate-row:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
-  .translate-row.selected { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--text-primary); border-radius: 18px; }
+  .translate-row.selected { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3px var(--brand-700); border-radius: 18px; }
   @media (max-width: 640px) {
     .translate-row { grid-template-columns: 1fr; gap: 8px; }
     .translate-connector svg { height: 18px; }
   }
 
+  /* shadcn-style: quiet neutral card, no saturated fill — identity carried by a small tinted icon
+     badge instead of a bold background, matching the toned-down aesthetic requested. */
   .translate-pill {
-    border-radius: 14px; padding: 14px 16px; color: #fff; display: flex; align-items: center; gap: 12px;
-    min-height: 84px;
+    border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+    min-height: 84px; background: var(--surface-2); border: 1px solid var(--border);
   }
-  .translate-pill .translate-icon { width: 34px; height: 34px; flex: none; opacity: 0.95; }
+  .translate-pill .icon-badge {
+    width: 40px; height: 40px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .translate-pill .translate-icon { width: 20px; height: 20px; flex: none; }
   .translate-pill .translate-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .translate-pill .translate-label {
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);
   }
-  .translate-pill .translate-value { font-size: 19px; font-weight: 700; line-height: 1.15; }
+  .translate-pill .translate-value { font-size: 19px; font-weight: 700; line-height: 1.15; color: var(--text-primary); }
 
   .translate-connector { display: flex; align-items: center; justify-content: center; }
   .translate-connector svg { width: 100%; height: 28px; }
 
-  /* Mostly-green family across four rows — icon + label carry each metric's identity, not hue — with
-     Cost Saved singled out as the dark/gold "hero" row, echoing the app's own dark hero-total bar. */
-  .translate-row.m-water .translate-pill { background: linear-gradient(160deg, var(--brand-500), color-mix(in srgb, var(--brand-500) 60%, black)); }
-  .translate-row.m-carbon .translate-pill { background: linear-gradient(160deg, var(--brand-700), color-mix(in srgb, var(--brand-700) 65%, black)); }
-  .translate-row.m-air .translate-pill { background: linear-gradient(160deg, var(--brand-900), color-mix(in srgb, var(--brand-900) 70%, black)); }
-  .translate-row.m-oxygen .translate-pill { background: linear-gradient(160deg, color-mix(in srgb, var(--brand-300) 75%, black), color-mix(in srgb, var(--brand-300) 45%, black)); }
-  .translate-row.m-cost .translate-pill { background: linear-gradient(160deg, var(--hero-bg), color-mix(in srgb, var(--hero-bg) 70%, black)); color: var(--gold); }
-  .translate-row.m-cost .translate-pill .translate-value { color: var(--gold); }
+  /* Each metric keeps its own muted brand-green step, carried only by the icon badge (and the
+     connector) now — Cost Saved is the one accent exception, a dark ink / gold pairing that echoes
+     the app's own hero-total treatment without filling the whole card. */
+  .translate-row.m-water .icon-badge { background: var(--brand-wash); color: var(--brand-500); }
+  .translate-row.m-carbon .icon-badge { background: var(--brand-wash); color: var(--brand-700); }
+  .translate-row.m-air .icon-badge { background: var(--brand-wash-strong); color: var(--brand-900); }
+  .translate-row.m-oxygen .icon-badge { background: var(--brand-wash); color: color-mix(in srgb, var(--brand-300) 55%, var(--brand-900)); }
+  .translate-row.m-cost .icon-badge { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-ink); }
+  .translate-row.m-cost .translate-pill .translate-value { color: var(--gold-ink); }
 
   /* --- Panels / grid --- */
   .grid-2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 14px; margin-bottom: 14px; }
@@ -198,6 +206,16 @@
   .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
   .stat-tile .v { font-size: 19px; font-weight: 700; }
   .stat-tile .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Site & biodiversity: ratio meters + a species-composition donut, both feeding off the same panel */
+  .site-bio-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: center; margin-bottom: 16px; }
+  @media (max-width: 760px) { .site-bio-grid { grid-template-columns: 1fr; } }
+  .meter-row { display: grid; grid-template-columns: 150px 1fr 52px; align-items: center; gap: 10px; margin: 12px 0; font-size: 13px; }
+  .meter-row .name { color: var(--text-secondary); }
+  .meter-track { height: 10px; border-radius: 5px; background: var(--brand-wash); }
+  .meter-fill { height: 10px; border-radius: 5px; background: var(--brand-700); }
+  .meter-row .val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .site-bio-donut-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
   table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.data th, table.data td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline); }
@@ -264,37 +282,18 @@
 
   <main id="dashboard">
 
-    <div class="kpi-row" id="kpiRow"></div>
-
-    <div class="panel" id="growthBarPanel" style="margin-bottom:14px; display:none;">
-      <div class="panel-head">
-        <div>
-          <h3 id="growthBarTitle">Growth over time</h3>
-          <div class="panel-sub" id="growthBarSub">Annual, by design-option growth stage — click a card above to change the metric, click a stage to view it above</div>
-        </div>
-      </div>
-      <div class="growth-chart-wrap">
-        <div id="growthBarHost"></div>
-      </div>
-    </div>
-
-    <div class="panel" id="growthCurvePanel" style="margin-bottom:14px; display:none;">
-      <div class="panel-head">
-        <div>
-          <h3 id="growthCurveTitle">Growth curve</h3>
-          <div class="panel-sub" id="growthCurveSub">Lifetime cumulative, traced across growth stages</div>
-        </div>
-      </div>
-      <div class="growth-chart-wrap">
-        <div id="growthCurveHost"></div>
-      </div>
-    </div>
-
     <div class="panel" style="margin-bottom:14px;">
       <div class="panel-head">
         <div>
           <h3>Site &amp; biodiversity</h3>
           <div class="panel-sub">Canopy, softscape and habitat indicators for the whole site</div>
+        </div>
+      </div>
+      <div class="site-bio-grid">
+        <div id="siteMeters"></div>
+        <div class="site-bio-donut-wrap">
+          <svg id="speciesDonut" width="150" height="150" viewBox="0 0 150 150"></svg>
+          <div class="legend" id="speciesDonutLegend"></div>
         </div>
       </div>
       <div class="stat-strip" id="siteKpiStrip"></div>
@@ -363,6 +362,32 @@
       </div>
       <div class="table-scroll">
         <table class="data" id="floorTable"></table>
+      </div>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="panel" id="growthBarPanel" style="margin-bottom:14px; display:none;">
+      <div class="panel-head">
+        <div>
+          <h3 id="growthBarTitle">Growth over time</h3>
+          <div class="panel-sub" id="growthBarSub">Annual, by design-option growth stage — click a translation card above to change the metric, click a stage to view it there</div>
+        </div>
+      </div>
+      <div class="growth-chart-wrap">
+        <div id="growthBarHost"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="growthCurvePanel" style="margin-bottom:14px; display:none;">
+      <div class="panel-head">
+        <div>
+          <h3 id="growthCurveTitle">Growth curve</h3>
+          <div class="panel-sub" id="growthCurveSub">Lifetime cumulative, traced across growth stages</div>
+        </div>
+      </div>
+      <div class="growth-chart-wrap">
+        <div id="growthCurveHost"></div>
       </div>
     </div>
 
@@ -671,7 +696,7 @@
     renderCostDonut(isAnnual, t, currency);
     renderPollutantBars(pollutants);
     renderSpecies(scenario.species || [], isAnnual, currency);
-    renderSiteKpi(scenario.siteKpi || {});
+    renderSiteKpi(scenario.siteKpi || {}, t.treeCount ?? 0);
     renderFloorTable(scenario.floorTypes || []);
   }
 
@@ -833,12 +858,12 @@
   function metricIcon(kind) {
     const icons = {
       water: '<path d="M16 3c5 6.5 9.5 12 9.5 17.5a9.5 9.5 0 1 1-19 0C6.5 15 11 8.5 16 3z"/>',
-      carbon: '<path d="M16 4a12 12 0 1 0 11.3 8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M27.5 6.5l-.7 5.8-5.6-1.6z"/>',
+      carbon: '<path d="M16 4a12 12 0 1 0 11.3 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M27.5 6.5l-.7 5.8-5.6-1.6z"/>',
       air: '<path d="M23 24H10a5.5 5.5 0 0 1-1-10.9A6.5 6.5 0 0 1 21.6 9.6 5.5 5.5 0 0 1 27 15a5 5 0 0 1-4 9z"/><circle cx="9" cy="27.5" r="1.4"/><circle cx="14.5" cy="27.5" r="1.4"/><circle cx="20" cy="27.5" r="1.4"/>',
-      oxygen: '<path d="M9 23C9 13 17 7 27 7c0 10-6 18-16 18-1 0-2-.8-2-2z"/><path d="M11 25L25 9" fill="none" stroke="#ffffff99" stroke-width="1.6" stroke-linecap="round"/>',
-      cost: '<path d="M16 5c2.4 0 3.6 1.8 3.2 3.6-.3 1.3-1.3 1.9-1.3 1.9s3.4 1 6 4.2c2.3 2.8 3.1 6.5 3.1 8.8 0 3-2.8 4.5-11 4.5s-11-1.5-11-4.5c0-2.3.8-6 3.1-8.8 2.6-3.2 6-4.2 6-4.2s-1-.6-1.3-1.9C12.4 6.8 13.6 5 16 5z"/><path d="M16 15v10M12.8 17.8c0-1.4 1.4-2.3 3.2-2.3s3.4 1 3.4 2.4c0 3.4-7 1.4-7 4.8 0 1.4 1.6 2.4 3.6 2.4s3.6-1 3.6-2.4" fill="none" stroke="' + '#00000055' + '" stroke-width="1.6" stroke-linecap="round"/>',
+      oxygen: '<path d="M9 23C9 13 17 7 27 7c0 10-6 18-16 18-1 0-2-.8-2-2z"/><path d="M11 25L25 9" fill="none" stroke="currentColor" stroke-opacity=".6" stroke-width="1.6" stroke-linecap="round"/>',
+      cost: '<path d="M16 5c2.4 0 3.6 1.8 3.2 3.6-.3 1.3-1.3 1.9-1.3 1.9s3.4 1 6 4.2c2.3 2.8 3.1 6.5 3.1 8.8 0 3-2.8 4.5-11 4.5s-11-1.5-11-4.5c0-2.3.8-6 3.1-8.8 2.6-3.2 6-4.2 6-4.2s-1-.6-1.3-1.9C12.4 6.8 13.6 5 16 5z"/><path d="M16 15v10M12.8 17.8c0-1.4 1.4-2.3 3.2-2.3s3.4 1 3.4 2.4c0 3.4-7 1.4-7 4.8 0 1.4 1.6 2.4 3.6 2.4s3.6-1 3.6-2.4" fill="none" stroke="var(--surface-2)" stroke-width="1.6" stroke-linecap="round"/>',
     };
-    return '<svg class="translate-icon" viewBox="0 0 32 32" fill="#fff">' + icons[kind] + '</svg>';
+    return '<svg class="translate-icon" viewBox="0 0 32 32" fill="currentColor">' + icons[kind] + '</svg>';
   }
 
   // A short colored squiggle standing in for "≈" between the raw-value pill and its everyday
@@ -869,7 +894,7 @@
       <div class="translate-row m-${r.m}${r.m === state.growthMetric ? ' selected' : ''}" data-metric="${r.m}" tabindex="0" role="button"
         aria-pressed="${r.m === state.growthMetric}" title="Show ${r.label} in the growth charts below">
         <div class="translate-pill">
-          ${metricIcon(r.icon)}
+          <div class="icon-badge">${metricIcon(r.icon)}</div>
           <div class="translate-text">
             <div class="translate-label">${r.label}</div>
             <div class="translate-value">${r.value}</div>
@@ -877,7 +902,7 @@
         </div>
         <div class="translate-connector">${waveConnector(METRICS[r.m].color)}</div>
         <div class="translate-pill">
-          ${metricIcon(r.icon)}
+          <div class="icon-badge">${metricIcon(r.icon)}</div>
           <div class="translate-text">
             <div class="translate-value">${r.equiv}</div>
           </div>
@@ -1143,17 +1168,78 @@
   }
 
   // ---------------- Site & biodiversity ----------------
-  function renderSiteKpi(k) {
+  function renderSiteKpi(k, totalTrees) {
+    // Ratio stats read as meters (a value against a 0-100% limit), not bare numbers — the two counts
+    // that aren't ratios (distinct species, bloom months) stay as plain stat tiles below.
+    const meters = [
+      { l: 'Canopy cover', v: k.canopyCoverPercent },
+      { l: 'Softscape ratio', v: k.softscapeSurfaceRatioPercent },
+      { l: 'Native species share', v: k.nativeSpeciesRatioPercent },
+      { l: 'Dark-sky compliant lighting', v: k.lightingCompliancePercent },
+    ];
+    $('siteMeters').innerHTML = meters.map((m) => {
+      const has = m.v != null;
+      const width = has ? Math.max(0, Math.min(100, m.v)) : 0;
+      return `
+        <div class="meter-row">
+          <div class="name">${m.l}</div>
+          <div class="meter-track"><div class="meter-fill" style="width:${width}%"></div></div>
+          <div class="val">${has ? pct(m.v, 0) : 'Not entered'}</div>
+        </div>`;
+    }).join('');
+
     const tiles = [
-      { l: 'Canopy cover', v: k.canopyCoverPercent != null ? pct(k.canopyCoverPercent) : 'Not entered' },
-      { l: 'Softscape ratio', v: k.softscapeSurfaceRatioPercent != null ? pct(k.softscapeSurfaceRatioPercent) : 'Not entered' },
       { l: 'Distinct species', v: fixed(k.distinctSpeciesCount ?? 0, 0) },
-      { l: 'Native species share', v: k.nativeSpeciesRatioPercent != null ? pct(k.nativeSpeciesRatioPercent) : '—' },
       { l: 'Bloom months covered', v: fixed(k.distinctBloomMonthsCount ?? 0, 0) + ' / 12' },
-      { l: 'Dark-sky compliant lighting', v: k.lightingCompliancePercent != null ? pct(k.lightingCompliancePercent) : '—' },
     ];
     $('siteKpiStrip').innerHTML = tiles.map(t => `
       <div class="stat-tile"><div class="v">${t.v}</div><div class="l">${t.l}</div></div>`).join('');
+
+    renderSpeciesCompositionDonut(k, totalTrees);
+  }
+
+  // Native / Adaptive / Other-or-unclassified split of the tree count — the one part-to-whole case
+  // in this section with few enough segments for a donut, same convention as the cost-savings ring.
+  function renderSpeciesCompositionDonut(k, totalTrees) {
+    const native = Math.max(0, k.nativeTreeCount ?? 0);
+    const adaptive = Math.max(0, k.adaptiveTreeCount ?? 0);
+    const other = Math.max(0, (totalTrees ?? 0) - native - adaptive);
+    const total = native + adaptive + other;
+
+    const segs = [
+      { label: 'Native', v: native, color: 'var(--brand-700)' },
+      { label: 'Adaptive', v: adaptive, color: 'var(--brand-300)' },
+      { label: 'Other / unclassified', v: other, color: 'var(--gridline)' },
+    ];
+
+    const svg = $('speciesDonut');
+    const r = 58, cx = 75, cy = 75, thickness = 16;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+    let parts = '';
+    segs.forEach((seg) => {
+      const frac = total > 0 ? seg.v / total : 0;
+      const gap = frac > 0 ? 2 : 0;
+      const len = Math.max(0, frac * circumference - gap);
+      parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${thickness}"
+        stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}" stroke-linecap="round"
+        data-tip="${seg.label}: ${fixed(seg.v, 0)} trees (${(frac * 100).toFixed(0)}%)" class="donut-seg"/>`;
+      offset += frac * circumference;
+    });
+    svg.innerHTML = parts +
+      `<text x="${cx}" y="${cy - 2}" text-anchor="middle" fill="var(--text-primary)" style="font-size:17px;font-weight:700;">${fixed(total, 0)}</text>
+       <text x="${cx}" y="${cy + 15}" text-anchor="middle" fill="var(--text-muted)" style="font-size:9px;letter-spacing:.03em;text-transform:uppercase;">trees</text>`;
+
+    svg.querySelectorAll('.donut-seg').forEach((el) => {
+      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
+      el.addEventListener('mouseleave', hideTooltip);
+    });
+
+    $('speciesDonutLegend').innerHTML = segs.map((seg) => {
+      const frac = total > 0 ? (seg.v / total) * 100 : 0;
+      return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
+        <span class="name">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+    }).join('');
   }
 
   // ---------------- Floor types ----------------

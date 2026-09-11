@@ -191,6 +191,7 @@
   /* bars */
   .bar-row { display: grid; grid-template-columns: 120px 1fr 74px; align-items: center; gap: 10px; margin: 10px 0; font-size: 13px; }
   .bar-row .name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .species-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; flex: none; vertical-align: middle; }
   .bar-track { height: 14px; border-radius: 7px; background: var(--gridline); position: relative; }
   .bar-fill { height: 14px; border-radius: 7px; }
   .bar-row .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1137,6 +1138,15 @@
   }
 
   // ---------------- Species ----------------
+  // A fixed identifying color per species (not derived from its own magnitude, so it isn't a
+  // magnitude ramp double-encoding the bar length) — a green-family step by rank, so the same
+  // species reads as the same color in both the chart and the table, and switching Chart/Table
+  // never reshuffles which color means which species.
+  function speciesRampColor(index, total) {
+    const t = total > 1 ? index / (total - 1) : 0;
+    return `color-mix(in srgb, var(--brand-900) ${((1 - t) * 100).toFixed(0)}%, var(--brand-300) ${(t * 100).toFixed(0)}%)`;
+  }
+
   function renderSpecies(species, isAnnual, currency) {
     const rows = species.map(s => ({
       name: s.commonName || s.speciesCode || 'Unassigned',
@@ -1149,12 +1159,16 @@
         : (s.carbonCostSavedLifetime ?? 0) + (s.stormWaterCostSavedLifetime ?? 0) + (s.airPollutionCostSavedLifetime ?? 0),
     })).sort((a, b) => b.carbon - a.carbon);
 
+    // Assigned once over the full (sorted) list, not recomputed per view, so the same species is
+    // always the same color whether it's showing in the top-8 chart or scrolling by in the table.
+    rows.forEach((r, i) => { r.color = speciesRampColor(i, rows.length); });
+
     const top = rows.slice(0, 8);
     const max = Math.max(1e-9, ...top.map(r => r.carbon));
-    $('speciesBars').innerHTML = top.map(r => `
+    $('speciesBars').innerHTML = top.map((r) => `
       <div class="bar-row">
-        <div class="name" title="${r.name}">${r.name}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(r.carbon / max * 100).toFixed(1)}%;background:${PALETTE.carbon}"></div></div>
+        <div class="name" title="${r.name}"><span class="species-dot" style="background:${r.color}"></span>${r.name}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(r.carbon / max * 100).toFixed(1)}%;background:${r.color}"></div></div>
         <div class="val">${fixed(r.carbon, 0)} kg</div>
       </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">No species data in this export.</p>';
 
@@ -1162,7 +1176,7 @@
     table.innerHTML = `
       <thead><tr><th>Species</th><th class="num">Trees</th><th class="num">Carbon (kg)</th>
         <th class="num">Pollutants (kg)</th><th class="num">Cost saved</th></tr></thead>
-      <tbody>${rows.map(r => `<tr><td>${r.name}</td><td class="num">${fixed(r.trees, 0)}</td>
+      <tbody>${rows.map((r) => `<tr><td><span class="species-dot" style="background:${r.color}"></span>${r.name}</td><td class="num">${fixed(r.trees, 0)}</td>
         <td class="num">${fixed(r.carbon, 1)}</td><td class="num">${fixed(r.pollution, 2)}</td>
         <td class="num">${money(r.cost, currency)}</td></tr>`).join('')}</tbody>`;
   }

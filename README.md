@@ -6,20 +6,23 @@ Dashboard app itself (mostly green, quiet shadcn-style neutral cards, a gold
 accent for money): carbon / storm water / air-pollution metrics translated
 into everyday equivalents (paired cards — raw value on the left, its everyday
 equivalent on the right — joined by a wavy connector), an abstract country map
-with the project's specific region highlighted, a cost-savings donut, a
-species-composition donut plus ratio meters for canopy/softscape/native/
-lighting stats, pollutant and species bar charts, and a floor/softscape
-breakdown table. Near the bottom, a **growth-year selector** (for projects
-that model the same planted layout at different tree ages via Revit design
-options, e.g. 5/10/15/20/25 years) sits beside the translation cards — click
-any card to drive the growth bar/curve charts by that metric.
+with the project's specific region highlighted, a "most impactful tree"
+highlight card (top species by carbon sequestered, with a real reference
+photo), a cost-savings donut, a species-composition donut plus ratio meters
+for canopy/softscape/native/lighting stats, color-coded pollutant and species
+bar charts, and a floor/softscape breakdown table. Near the bottom, a
+**growth-year selector** (for projects that model the same planted layout at
+different tree ages via Revit design options, e.g. 5/10/15/20/25 years) sits
+beside the translation cards — click any card to drive the growth bar/curve
+charts by that metric.
 
 No backend, no build step, no signup — open `index.html` in a browser (or
 host it on GitHub Pages) and drop in a JSON file. Parsing happens entirely in
-your browser; nothing you upload leaves it. The region map does make two
-small, public, unauthenticated lookups (a reverse geocode, then a country's
-boundary shapes — see "Region map" below), sending only the project's own
-already-public latitude/longitude.
+your browser; nothing you upload leaves it. Two features make small, public,
+unauthenticated lookups using only data already in the export: the region map
+(a reverse geocode, then a country's boundary shapes — see "Region map"
+below) and the most-impactful-tree photo (a Wikipedia summary lookup by
+species common name — see "Most impactful tree" below).
 
 ## Usage
 
@@ -109,6 +112,19 @@ Point-in-polygon (plain ray casting) picks the matching region client-side.
 If either lookup fails, or geoBoundaries has no ADM1 data for that country,
 the panel falls back to showing the location's plain coordinates instead of
 erroring.
+
+## Most impactful tree
+
+Whichever species ranks #1 by carbon sequestered (the same ranking the "Top
+species" chart uses) gets its own highlight card with a real reference photo,
+not a decorative icon — looked up by common name via
+[Wikipedia's page-summary API](https://en.wikipedia.org/api/rest_v1/) (free,
+no key, reliable CORS). Common tree names resolve well in practice, and a
+genus-only entry like `"Oak, spp. (Quercus)"` gets a second attempt against
+the parenthesized genus name. A name is never guaranteed to match, though, so
+a failed or ambiguous lookup always falls back to a plain placeholder rather
+than risk showing the wrong tree — it never blocks the rest of the page, and
+results are cached per species name for the session.
 
 ## Methodology / equivalency figures
 

@@ -192,6 +192,28 @@
   .bar-row { display: grid; grid-template-columns: 120px 1fr 74px; align-items: center; gap: 10px; margin: 10px 0; font-size: 13px; }
   .bar-row .name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .species-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; flex: none; vertical-align: middle; }
+
+  /* --- Most impactful tree highlight --- */
+  .top-tree-card { display: flex; gap: 20px; align-items: center; }
+  @media (max-width: 560px) { .top-tree-card { flex-direction: column; align-items: stretch; } }
+  .top-tree-photo {
+    width: 152px; height: 152px; border-radius: 12px; overflow: hidden; flex: none;
+    background: var(--surface-1); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .top-tree-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .top-tree-photo svg { width: 52px; height: 52px; color: var(--text-muted); }
+  .top-tree-info { min-width: 0; }
+  .top-tree-badge {
+    display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--brand-700); background: var(--brand-wash); border-radius: 999px; padding: 4px 10px; margin-bottom: 8px;
+  }
+  .top-tree-name { font-size: 21px; font-weight: 700; }
+  .top-tree-stats { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px; }
+  .top-tree-stats .v { font-size: 16px; font-weight: 700; }
+  .top-tree-stats .l { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 1px; }
+  .top-tree-source { font-size: 11px; color: var(--text-muted); margin-top: 10px; }
+  .top-tree-source a { color: var(--text-muted); text-decoration: underline; }
   .bar-track { height: 14px; border-radius: 7px; background: var(--gridline); position: relative; }
   .bar-fill { height: 14px; border-radius: 7px; }
   .bar-row .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -321,6 +343,24 @@
         <div class="donut-wrap">
           <svg id="donut" width="190" height="190" viewBox="0 0 190 190"></svg>
           <div class="legend" id="donutLegend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="topTreePanel" style="margin-bottom:14px; display:none;">
+      <div class="panel-head">
+        <div>
+          <h3>Most impactful tree</h3>
+          <div class="panel-sub">Top species by carbon sequestered</div>
+        </div>
+      </div>
+      <div class="top-tree-card">
+        <div class="top-tree-photo" id="topTreePhoto"></div>
+        <div class="top-tree-info">
+          <div class="top-tree-badge">Top carbon performer</div>
+          <div class="top-tree-name" id="topTreeName"></div>
+          <div class="top-tree-stats" id="topTreeStats"></div>
+          <div class="top-tree-source" id="topTreeSource"></div>
         </div>
       </div>
     </div>
@@ -1179,6 +1219,78 @@
       <tbody>${rows.map((r) => `<tr><td><span class="species-dot" style="background:${r.color}"></span>${r.name}</td><td class="num">${fixed(r.trees, 0)}</td>
         <td class="num">${fixed(r.carbon, 1)}</td><td class="num">${fixed(r.pollution, 2)}</td>
         <td class="num">${money(r.cost, currency)}</td></tr>`).join('')}</tbody>`;
+
+    renderTopTreeHighlight(rows[0], currency);
+  }
+
+  // ---------------- Most impactful tree ----------------
+  // A real reference photo, not a decorative icon — looked up client-side by common name via
+  // Wikipedia's summary API (reliable CORS, no key). Common tree names resolve well in practice
+  // (verified against this project's own sample species), but a name is never guaranteed to match,
+  // so this always degrades to a plain placeholder rather than risk showing the wrong tree.
+  const TREE_PHOTO_CACHE = new Map();
+
+  async function fetchWikipediaThumbnail(query) {
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query.replace(/\s+/g, '_'))}`);
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (j.type === 'disambiguation' || !j.thumbnail) return null;
+    return {
+      url: j.thumbnail.source,
+      title: j.title,
+      pageUrl: j.content_urls?.desktop?.page || ('https://en.wikipedia.org/wiki/' + encodeURIComponent(j.title.replace(/ /g, '_'))),
+    };
+  }
+
+  async function loadTopTreePhoto(name) {
+    if (TREE_PHOTO_CACHE.has(name)) return TREE_PHOTO_CACHE.get(name);
+    let result = null;
+    try {
+      result = await fetchWikipediaThumbnail(name);
+      if (!result) {
+        // Some catalogs record genus-only entries like "Oak, spp. (Quercus)" — retry on the
+        // parenthesized genus name before giving up.
+        const genusMatch = /\(([^)]+)\)\s*$/.exec(name);
+        if (genusMatch) result = await fetchWikipediaThumbnail(genusMatch[1]);
+      }
+    } catch {
+      result = null;
+    }
+    TREE_PHOTO_CACHE.set(name, result);
+    return result;
+  }
+
+  const TREE_PLACEHOLDER_ICON = '<svg viewBox="0 0 32 32" fill="currentColor"><path d="M16 2c6 7 11 13 11 19a11 11 0 1 1-22 0C5 15 10 9 16 2z"/></svg>';
+
+  async function renderTopTreeHighlight(topRow, currency) {
+    const panel = $('topTreePanel');
+    if (!topRow) {
+      panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = 'block';
+
+    $('topTreeName').textContent = topRow.name;
+    $('topTreeStats').innerHTML = `
+      <div class="top-tree-stat"><div class="v">${fixed(topRow.trees, 0)}</div><div class="l">Trees</div></div>
+      <div class="top-tree-stat"><div class="v">${fixed(topRow.carbon, 0)} kg</div><div class="l">Carbon sequestered</div></div>
+      <div class="top-tree-stat"><div class="v">${fixed(topRow.pollution, 2)} kg</div><div class="l">Pollutants removed</div></div>
+      <div class="top-tree-stat"><div class="v">${money(topRow.cost, currency)}</div><div class="l">Cost saved</div></div>`;
+    $('topTreePhoto').innerHTML = '<div class="region-spinner"></div>';
+    $('topTreeSource').textContent = '';
+
+    const photo = await loadTopTreePhoto(topRow.name);
+    // The top species can change mid-fetch (a scenario/period toggle re-renders everything) — bail
+    // if this response is no longer for the row currently on screen.
+    if ($('topTreeName').textContent !== topRow.name) return;
+
+    if (photo) {
+      $('topTreePhoto').innerHTML = `<img src="${photo.url}" alt="${escapeAttr(photo.title)}" loading="lazy">`;
+      $('topTreeSource').innerHTML = `Reference photo: <a href="${photo.pageUrl}" target="_blank" rel="noopener">Wikipedia</a>`;
+    } else {
+      $('topTreePhoto').innerHTML = TREE_PLACEHOLDER_ICON;
+      $('topTreeSource').textContent = 'No reference photo found for this species name.';
+    }
   }
 
   // ---------------- Site & biodiversity ----------------

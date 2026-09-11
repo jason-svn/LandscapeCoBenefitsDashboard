@@ -27,6 +27,9 @@
     --slot-3-wash: rgba(27,175,122,0.10);
     --slot-4-wash: rgba(237,161,0,0.10);
     --slot-5-wash: rgba(232,123,164,0.10);
+    /* Status pair, not categorical — signals "which period is currently shown", same green in both modes. */
+    --active: #0ca30c;
+    --inactive: #c3c2b7;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -37,6 +40,8 @@
       --slot-1: #3987e5; --slot-2: #d95926; --slot-3: #199e70; --slot-4: #c98500; --slot-5: #d55181;
       --slot-1-wash: rgba(57,135,229,0.14); --slot-2-wash: rgba(217,89,38,0.14);
       --slot-3-wash: rgba(25,158,112,0.14); --slot-4-wash: rgba(201,133,0,0.14); --slot-5-wash: rgba(213,81,129,0.14);
+      --active: #0ca30c;
+      --inactive: #55544f;
     }
   }
   :root[data-theme="dark"] {
@@ -47,6 +52,8 @@
     --slot-1: #3987e5; --slot-2: #d95926; --slot-3: #199e70; --slot-4: #c98500; --slot-5: #d55181;
     --slot-1-wash: rgba(57,135,229,0.14); --slot-2-wash: rgba(217,89,38,0.14);
     --slot-3-wash: rgba(25,158,112,0.14); --slot-4-wash: rgba(201,133,0,0.14); --slot-5-wash: rgba(213,81,129,0.14);
+    --active: #0ca30c;
+    --inactive: #55544f;
   }
 
   * { box-sizing: border-box; }
@@ -107,9 +114,10 @@
   }
   .kpi-card .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; display: flex; align-items: center; gap: 6px; }
   .kpi-card .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
-  .kpi-card .equiv { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; font-weight: 600; }
+  .kpi-card .equiv { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; font-weight: 600; }
   .kpi-card .equiv .arrow { opacity: 0.7; font-size: 15px; }
   .kpi-card .icon { width: 20px; height: 20px; flex: none; }
+  .kpi-card .equiv-icon { width: 15px; height: 15px; flex: none; opacity: 0.9; }
   .kpi-card.c1 { background: linear-gradient(160deg, var(--slot-1), color-mix(in srgb, var(--slot-1) 65%, black)); }
   .kpi-card.c2 { background: linear-gradient(160deg, var(--slot-2), color-mix(in srgb, var(--slot-2) 65%, black)); }
   .kpi-card.c3 { background: linear-gradient(160deg, var(--slot-3), color-mix(in srgb, var(--slot-3) 65%, black)); }
@@ -148,6 +156,17 @@
   .bar-track { height: 14px; border-radius: 7px; background: var(--gridline); position: relative; }
   .bar-fill { height: 14px; border-radius: 7px; }
   .bar-row .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* growth-over-time chart */
+  .growth-chart-wrap { margin-top: 4px; }
+  .growth-svg { width: 100%; height: auto; display: block; }
+  .growth-col-group { cursor: pointer; }
+  .growth-col-group .growth-bar { transition: opacity 0.1s ease; }
+  .growth-col-group:hover .growth-bar { opacity: 0.85; }
+  .growth-legend { display: flex; gap: 18px; margin-top: 6px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
+  .growth-legend .row { display: flex; align-items: center; gap: 6px; }
+  .growth-legend .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .growth-legend .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--active); }
 
   /* small stat tiles for site KPIs */
   .stat-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
@@ -223,10 +242,13 @@
       <div class="panel-head">
         <div>
           <h3>Growth over time</h3>
-          <div class="panel-sub">CO₂ sequestered per year, by design-option growth stage — the highlighted bar is the stage shown above</div>
+          <div class="panel-sub">CO₂ sequestered by design-option growth stage — Annual and Lifetime side by side; the active period is green, click a stage to view it above</div>
         </div>
       </div>
-      <div id="growthBars"></div>
+      <div class="growth-chart-wrap">
+        <div id="growthChartHost"></div>
+        <div class="growth-legend" id="growthLegend"></div>
+      </div>
     </div>
 
     <div class="grid-2">
@@ -539,10 +561,27 @@
   // ---------------- Growth-over-time (design-option scenarios) ----------------
   // Design options here model the same planted layout at different tree ages (5/10/15/20/25 years,
   // in this project's case) — genuinely different points in time for one site, not independent
-  // alternatives to sum. This chart is a magnitude comparison across those stages: flat accent hue
-  // (not a value ramp, which would double-encode magnitude as both length and darkness), with the
-  // currently-selected stage picked out and the rest de-emphasized — the "emphasis" form for
-  // "one series is the point, rest are context".
+  // alternatives to sum. Each stage shows both its Annual rate and Lifetime cumulative total on one
+  // shared scale (never dual-axis): whichever matches the Annual/Lifetime toggle above is "active"
+  // (green, the status-good color — a state, not a series identity, so it deliberately isn't drawn
+  // from the categorical palette), the other stays grey. A smooth curve traces the active series
+  // across stages so the growth trajectory itself is legible, not just each stage in isolation.
+  function smoothPath(points) {
+    if (points.length < 2) return '';
+    if (points.length === 2) return `M ${points[0][0]} ${points[0][1]} L ${points[1][0]} ${points[1][1]}`;
+    let d = `M ${points[0][0]} ${points[0][1]} `;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i === 0 ? i : i - 1];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += `C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2[0]} ${p2[1]} `;
+    }
+    return d;
+  }
+
   function renderGrowthChart(scenarios, selectedLabel, isAnnual) {
     const panel = $('growthPanel');
     if (scenarios.length <= 1) {
@@ -551,28 +590,84 @@
     }
     panel.style.display = 'block';
 
-    const rows = scenarios.map(s => ({
-      label: s.years != null ? (s.years + ' yr') : s.label,
-      full: s.label,
-      v: isAnnual ? (s.totals.carbonSequesteredAnnualKg ?? 0) : (s.totals.carbonSequesteredLifetimeKg ?? 0),
+    const data = scenarios.map(s => ({
+      key: s.label,
+      xLabel: s.years != null ? (s.years + ' yr') : s.label,
+      annual: s.totals.carbonSequesteredAnnualKg ?? 0,
+      lifetime: s.totals.carbonSequesteredLifetimeKg ?? 0,
       selected: s.label === selectedLabel,
     }));
-    const max = Math.max(1e-9, ...rows.map(r => r.v));
 
-    $('growthBars').innerHTML = rows.map(r => `
-      <div class="bar-row" data-scenario="${escapeAttr(r.full)}" style="cursor:pointer;${r.selected ? '' : 'opacity:.55;'}">
-        <div class="name" style="${r.selected ? 'color:var(--text-primary);font-weight:700;' : ''}">${r.label}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(r.v / max * 100).toFixed(1)}%;background:${PALETTE.carbon}"></div></div>
-        <div class="val">${fixed(r.v, 0)} kg</div>
-      </div>`).join('');
+    const width = 640, height = 250;
+    const marginLeft = 10, marginRight = 10, marginTop = 30, marginBottom = 30;
+    const plotW = width - marginLeft - marginRight;
+    const plotH = height - marginTop - marginBottom;
+    const n = data.length;
+    const groupW = plotW / n;
+    const barW = Math.min(26, groupW * 0.3);
+    const gap = 3;
 
-    $('growthBars').querySelectorAll('[data-scenario]').forEach(el => {
+    const maxV = Math.max(1e-9, ...data.flatMap(d => [d.annual, d.lifetime]));
+    const barHeight = (v) => (v <= 0 ? 0 : Math.max(2, (v / maxV) * plotH));
+
+    let bars = '';
+    const curvePoints = [];
+    data.forEach((d, i) => {
+      const groupCx = marginLeft + groupW * i + groupW / 2;
+      const annualX = groupCx - gap / 2 - barW;
+      const lifetimeX = groupCx + gap / 2;
+      const annualH = barHeight(d.annual);
+      const lifetimeH = barHeight(d.lifetime);
+      const annualY = marginTop + plotH - annualH;
+      const lifetimeY = marginTop + plotH - lifetimeH;
+      const annualColor = isAnnual ? 'var(--active)' : 'var(--inactive)';
+      const lifetimeColor = isAnnual ? 'var(--inactive)' : 'var(--active)';
+      const activeY = isAnnual ? annualY : lifetimeY;
+      const activeV = isAnnual ? d.annual : d.lifetime;
+      curvePoints.push([groupCx, activeY]);
+
+      bars += `
+        <g class="growth-col-group" data-scenario="${escapeAttr(d.key)}">
+          <rect x="${(groupCx - groupW / 2).toFixed(1)}" y="${marginTop}" width="${groupW.toFixed(1)}" height="${plotH}" fill="transparent"/>
+          <rect class="growth-bar" x="${annualX.toFixed(1)}" y="${annualY.toFixed(1)}" width="${barW.toFixed(1)}" height="${annualH.toFixed(1)}" rx="4" fill="${annualColor}"
+            data-tip="${escapeAttr(d.xLabel)} — Annual: ${fixed(d.annual, 0)} kg"></rect>
+          <rect class="growth-bar" x="${lifetimeX.toFixed(1)}" y="${lifetimeY.toFixed(1)}" width="${barW.toFixed(1)}" height="${lifetimeH.toFixed(1)}" rx="4" fill="${lifetimeColor}"
+            data-tip="${escapeAttr(d.xLabel)} — Lifetime: ${fixed(d.lifetime, 0)} kg"></rect>
+          ${d.selected ? `<text x="${groupCx.toFixed(1)}" y="${(activeY - 8).toFixed(1)}" text-anchor="middle" fill="var(--text-primary)" style="font-size:12px;font-weight:700;">${fixed(activeV, 0)} kg</text>` : ''}
+          <text x="${groupCx.toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
+            fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
+            style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${d.xLabel}</text>
+        </g>`;
+    });
+
+    const curveD = smoothPath(curvePoints);
+    const dots = curvePoints.map(([px, py]) =>
+      `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="var(--active)" stroke="var(--surface-2)" stroke-width="2"/>`).join('');
+
+    $('growthChartHost').innerHTML = `
+      <svg class="growth-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+        <line x1="${marginLeft}" y1="${marginTop + plotH}" x2="${width - marginRight}" y2="${marginTop + plotH}" stroke="var(--baseline)" stroke-width="1"/>
+        ${bars}
+        <path d="${curveD}" fill="none" stroke="var(--active)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dots}
+      </svg>`;
+
+    $('growthChartHost').querySelectorAll('.growth-bar').forEach(el => {
+      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
+      el.addEventListener('mouseleave', hideTooltip);
+    });
+    $('growthChartHost').querySelectorAll('.growth-col-group').forEach(el => {
       el.addEventListener('click', () => {
         state.scenarioLabel = el.dataset.scenario;
         renderScenarioTabs();
         renderAll();
       });
     });
+
+    $('growthLegend').innerHTML = `
+      <div class="row"><span class="swatch" style="background:${isAnnual ? 'var(--active)' : 'var(--inactive)'}"></span>Annual${isAnnual ? ' (active)' : ''}</div>
+      <div class="row"><span class="swatch" style="background:${isAnnual ? 'var(--inactive)' : 'var(--active)'}"></span>Lifetime${!isAnnual ? ' (active)' : ''}</div>
+      <div class="row"><span class="dot"></span>Growth curve, active series</div>`;
   }
 
   function kpiIcon(kind) {
@@ -586,6 +681,19 @@
     return '<svg class="icon" viewBox="0 0 20 20" fill="#fff">' + icons[kind] + '</svg>';
   }
 
+  // Small illustrative glyphs for the "≈ equivalent to" line — a literal picture of the comparison
+  // (a bath, a car, a cigarette, lungs, a coffee cup) rather than just the arrow + number.
+  function equivIcon(kind) {
+    const icons = {
+      bath: '<path d="M2 11h16v1a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4v-1z"/><path d="M2 11V8a2 2 0 0 1 2-2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="15" cy="5" r="1.3"/>',
+      drive: '<path d="M3 13l1.3-3.6A2 2 0 0 1 6.2 8h7.6a2 2 0 0 1 1.9 1.4L17 13"/><rect x="2" y="13" width="16" height="3" rx="1.2"/><circle cx="6.5" cy="17" r="1.6"/><circle cx="13.5" cy="17" r="1.6"/>',
+      cigarette: '<rect x="1" y="9.4" width="12" height="2.6" rx="1"/><rect x="13.4" y="9.4" width="2.4" height="2.6"/><path d="M17 8.6c1 .8 1 1.9 0 2.8M18.4 7.6c1.4 1.2 1.4 3 0 4.6" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>',
+      breath: '<path d="M10 2v5" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><path d="M10 7c-1.6-2.6-5.5-1.7-5.5 1.4 0 3.3 1.6 6.6 3.3 6.6.9 0 1.7-1 2.2-2.5" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 7c1.6-2.6 5.5-1.7 5.5 1.4 0 3.3-1.6 6.6-3.3 6.6-.9 0-1.7-1-2.2-2.5" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+      coffee: '<path d="M3 8h10v5a3.5 3.5 0 0 1-3.5 3.5h-3A3.5 3.5 0 0 1 3 13V8z"/><path d="M13 9.2h1.3a2 2 0 0 1 0 4H13" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M6 6c0-.8.6-.8.6-1.6S6 3 6 2.4M9.2 6c0-.8.6-.8.6-1.6S9.2 3 9.2 2.4" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>',
+    };
+    return '<svg class="equiv-icon" viewBox="0 0 20 20" fill="#fff">' + icons[kind] + '</svg>';
+  }
+
   function renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, treeCost, currency }) {
     const baths = (runoffM3 * 1000) / EQUIV.litersPerBath;
     const miles = co2Kg / EQUIV.kgCo2PerMileDriven;
@@ -594,18 +702,18 @@
     const coffees = treeCost / EQUIV.costPerCoffeeCup;
 
     const cards = [
-      { c: 'c1', icon: 'water', label: 'Avoided water run-off', value: fixed(runoffM3 * 1000, 0) + ' L', equiv: compact(baths, 0) + ' baths' },
-      { c: 'c2', icon: 'carbon', label: 'CO₂ sequestration', value: fixed(co2Kg, 0) + ' kg', equiv: 'driving ' + compact(miles, 0) + ' mi' },
-      { c: 'c3', icon: 'air', label: 'Air pollutants removed', value: fixed(pollutantTotalKg, 1) + ' kg', equiv: compact(cigarettes, 1) + ' cigarettes*' },
-      { c: 'c4', icon: 'oxygen', label: 'Air generated (O₂)', value: fixed(oxygenKg, 0) + ' kg', equiv: compact(breathingDays, 0) + ' days of breathing' },
-      { c: 'c5', icon: 'cost', label: 'Cost saved', value: money(treeCost, currency), equiv: compact(coffees, 0) + ' cups of coffee*' },
+      { c: 'c1', icon: 'water', equivIcon: 'bath', label: 'Avoided water run-off', value: fixed(runoffM3 * 1000, 0) + ' L', equiv: compact(baths, 0) + ' baths' },
+      { c: 'c2', icon: 'carbon', equivIcon: 'drive', label: 'CO₂ sequestration', value: fixed(co2Kg, 0) + ' kg', equiv: 'driving ' + compact(miles, 0) + ' mi' },
+      { c: 'c3', icon: 'air', equivIcon: 'cigarette', label: 'Air pollutants removed', value: fixed(pollutantTotalKg, 1) + ' kg', equiv: compact(cigarettes, 1) + ' cigarettes*' },
+      { c: 'c4', icon: 'oxygen', equivIcon: 'breath', label: 'Air generated (O₂)', value: fixed(oxygenKg, 0) + ' kg', equiv: compact(breathingDays, 0) + ' days of breathing' },
+      { c: 'c5', icon: 'cost', equivIcon: 'coffee', label: 'Cost saved', value: money(treeCost, currency), equiv: compact(coffees, 0) + ' cups of coffee*' },
     ];
 
     $('kpiRow').innerHTML = cards.map(c => `
       <div class="kpi-card ${c.c}">
         <div class="label">${kpiIcon(c.icon)} ${c.label}</div>
         <div class="value">${c.value}</div>
-        <div class="equiv"><span class="arrow">≈</span> ${c.equiv}</div>
+        <div class="equiv">${equivIcon(c.equivIcon)}<span class="arrow">≈</span> ${c.equiv}</div>
       </div>`).join('');
   }
 

@@ -238,7 +238,7 @@
 
     <div class="kpi-row" id="kpiRow"></div>
 
-    <div class="panel" id="growthPanel" style="margin-bottom:14px; display:none;">
+    <div class="panel" id="growthBarPanel" style="margin-bottom:14px; display:none;">
       <div class="panel-head">
         <div>
           <h3>Growth over time</h3>
@@ -246,8 +246,21 @@
         </div>
       </div>
       <div class="growth-chart-wrap">
-        <div id="growthChartHost"></div>
-        <div class="growth-legend" id="growthLegend"></div>
+        <div id="growthBarHost"></div>
+        <div class="growth-legend" id="growthBarLegend"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="growthCurvePanel" style="margin-bottom:14px; display:none;">
+      <div class="panel-head">
+        <div>
+          <h3>Growth curve</h3>
+          <div class="panel-sub">The same CO₂ figures traced as a trend across growth stages — the active period is green, click a stage to view it above</div>
+        </div>
+      </div>
+      <div class="growth-chart-wrap">
+        <div id="growthCurveHost"></div>
+        <div class="growth-legend" id="growthCurveLegend"></div>
       </div>
     </div>
 
@@ -549,7 +562,8 @@
     const oxygenKg = co2Kg * EQUIV.o2PerCo2MassRatio + (t.floorOxygenProducedAnnualKg ?? 0);
 
     renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, treeCost, currency });
-    renderGrowthChart(scenarios, scenario.label, isAnnual);
+    renderGrowthBarChart(scenarios, scenario.label, isAnnual);
+    renderGrowthCurveChart(scenarios, scenario.label, isAnnual);
     renderLocation(d.project.location);
     renderCostDonut(isAnnual, t, currency);
     renderPollutantBars(pollutants);
@@ -561,11 +575,105 @@
   // ---------------- Growth-over-time (design-option scenarios) ----------------
   // Design options here model the same planted layout at different tree ages (5/10/15/20/25 years,
   // in this project's case) — genuinely different points in time for one site, not independent
-  // alternatives to sum. Each stage shows both its Annual rate and Lifetime cumulative total on one
-  // shared scale (never dual-axis): whichever matches the Annual/Lifetime toggle above is "active"
-  // (green, the status-good color — a state, not a series identity, so it deliberately isn't drawn
-  // from the categorical palette), the other stays grey. A smooth curve traces the active series
-  // across stages so the growth trajectory itself is legible, not just each stage in isolation.
+  // alternatives to sum. Two separate charts, not one combined chart: a bar chart for comparing
+  // each stage's magnitude, and a line chart for reading the trend shape across stages — mixing
+  // both mark types in one plot area makes neither easy to read on its own. Both share the same
+  // data, scale, click-to-select behavior, and active/inactive convention: whichever series matches
+  // the Annual/Lifetime toggle above is "active" (green, the status-good color — a state, not a
+  // series identity, so it deliberately isn't drawn from the categorical palette), the other grey.
+  function scenarioGrowthData(scenarios, selectedLabel) {
+    return scenarios.map(s => ({
+      key: s.label,
+      xLabel: s.years != null ? (s.years + ' yr') : s.label,
+      annual: s.totals.carbonSequesteredAnnualKg ?? 0,
+      lifetime: s.totals.carbonSequesteredLifetimeKg ?? 0,
+      selected: s.label === selectedLabel,
+    }));
+  }
+
+  function bindGrowthInteractions(host, barSelector) {
+    host.querySelectorAll(barSelector).forEach(el => {
+      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
+      el.addEventListener('mouseleave', hideTooltip);
+    });
+    host.querySelectorAll('[data-scenario]').forEach(el => {
+      el.addEventListener('click', () => {
+        state.scenarioLabel = el.dataset.scenario;
+        renderScenarioTabs();
+        renderAll();
+      });
+    });
+  }
+
+  function growthLegendHtml(isAnnual, curveNote) {
+    return `
+      <div class="row"><span class="swatch" style="background:${isAnnual ? 'var(--active)' : 'var(--inactive)'}"></span>Annual${isAnnual ? ' (active)' : ''}</div>
+      <div class="row"><span class="swatch" style="background:${isAnnual ? 'var(--inactive)' : 'var(--active)'}"></span>Lifetime${!isAnnual ? ' (active)' : ''}</div>
+      ${curveNote ? '<div class="row"><span class="dot"></span>Growth curve, active series</div>' : ''}`;
+  }
+
+  // ---- Chart 1: bar chart (magnitude per stage) ----
+  function renderGrowthBarChart(scenarios, selectedLabel, isAnnual) {
+    const panel = $('growthBarPanel');
+    if (scenarios.length <= 1) {
+      panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = 'block';
+
+    const data = scenarioGrowthData(scenarios, selectedLabel);
+
+    const width = 640, height = 250;
+    const marginLeft = 10, marginRight = 10, marginTop = 30, marginBottom = 30;
+    const plotW = width - marginLeft - marginRight;
+    const plotH = height - marginTop - marginBottom;
+    const n = data.length;
+    const groupW = plotW / n;
+    const barW = Math.min(26, groupW * 0.3);
+    const gap = 3;
+
+    const maxV = Math.max(1e-9, ...data.flatMap(d => [d.annual, d.lifetime]));
+    const barHeight = (v) => (v <= 0 ? 0 : Math.max(2, (v / maxV) * plotH));
+
+    let bars = '';
+    data.forEach((d, i) => {
+      const groupCx = marginLeft + groupW * i + groupW / 2;
+      const annualX = groupCx - gap / 2 - barW;
+      const lifetimeX = groupCx + gap / 2;
+      const annualH = barHeight(d.annual);
+      const lifetimeH = barHeight(d.lifetime);
+      const annualY = marginTop + plotH - annualH;
+      const lifetimeY = marginTop + plotH - lifetimeH;
+      const annualColor = isAnnual ? 'var(--active)' : 'var(--inactive)';
+      const lifetimeColor = isAnnual ? 'var(--inactive)' : 'var(--active)';
+      const activeY = isAnnual ? annualY : lifetimeY;
+      const activeV = isAnnual ? d.annual : d.lifetime;
+
+      bars += `
+        <g data-scenario="${escapeAttr(d.key)}" class="growth-col-group">
+          <rect x="${(groupCx - groupW / 2).toFixed(1)}" y="${marginTop}" width="${groupW.toFixed(1)}" height="${plotH}" fill="transparent"/>
+          <rect class="growth-bar" x="${annualX.toFixed(1)}" y="${annualY.toFixed(1)}" width="${barW.toFixed(1)}" height="${annualH.toFixed(1)}" rx="4" fill="${annualColor}"
+            data-tip="${escapeAttr(d.xLabel)} — Annual: ${fixed(d.annual, 0)} kg"></rect>
+          <rect class="growth-bar" x="${lifetimeX.toFixed(1)}" y="${lifetimeY.toFixed(1)}" width="${barW.toFixed(1)}" height="${lifetimeH.toFixed(1)}" rx="4" fill="${lifetimeColor}"
+            data-tip="${escapeAttr(d.xLabel)} — Lifetime: ${fixed(d.lifetime, 0)} kg"></rect>
+          ${d.selected ? `<text x="${groupCx.toFixed(1)}" y="${(activeY - 8).toFixed(1)}" text-anchor="middle" fill="var(--text-primary)" style="font-size:12px;font-weight:700;">${fixed(activeV, 0)} kg</text>` : ''}
+          <text x="${groupCx.toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
+            fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
+            style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${d.xLabel}</text>
+        </g>`;
+    });
+
+    const host = $('growthBarHost');
+    host.innerHTML = `
+      <svg class="growth-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+        <line x1="${marginLeft}" y1="${marginTop + plotH}" x2="${width - marginRight}" y2="${marginTop + plotH}" stroke="var(--baseline)" stroke-width="1"/>
+        ${bars}
+      </svg>`;
+    bindGrowthInteractions(host, '.growth-bar');
+    $('growthBarLegend').innerHTML = growthLegendHtml(isAnnual, false);
+  }
+
+  // ---- Chart 2: line/curve chart (trend shape across stages) ----
   function smoothPath(points) {
     if (points.length < 2) return '';
     if (points.length === 2) return `M ${points[0][0]} ${points[0][1]} L ${points[1][0]} ${points[1][1]}`;
@@ -582,92 +690,74 @@
     return d;
   }
 
-  function renderGrowthChart(scenarios, selectedLabel, isAnnual) {
-    const panel = $('growthPanel');
+  function renderGrowthCurveChart(scenarios, selectedLabel, isAnnual) {
+    const panel = $('growthCurvePanel');
     if (scenarios.length <= 1) {
       panel.style.display = 'none';
       return;
     }
     panel.style.display = 'block';
 
-    const data = scenarios.map(s => ({
-      key: s.label,
-      xLabel: s.years != null ? (s.years + ' yr') : s.label,
-      annual: s.totals.carbonSequesteredAnnualKg ?? 0,
-      lifetime: s.totals.carbonSequesteredLifetimeKg ?? 0,
-      selected: s.label === selectedLabel,
-    }));
+    const data = scenarioGrowthData(scenarios, selectedLabel);
 
     const width = 640, height = 250;
-    const marginLeft = 10, marginRight = 10, marginTop = 30, marginBottom = 30;
+    // Wider side margins than the bar chart: points sit AT the left/right edges of the plot area
+    // (not inset half a group-width like bars), so the endpoint labels need room to center without
+    // the SVG's own viewport clipping them.
+    const marginLeft = 28, marginRight = 28, marginTop = 30, marginBottom = 30;
     const plotW = width - marginLeft - marginRight;
     const plotH = height - marginTop - marginBottom;
     const n = data.length;
-    const groupW = plotW / n;
-    const barW = Math.min(26, groupW * 0.3);
-    const gap = 3;
+    const stepX = n > 1 ? plotW / (n - 1) : 0;
 
     const maxV = Math.max(1e-9, ...data.flatMap(d => [d.annual, d.lifetime]));
-    const barHeight = (v) => (v <= 0 ? 0 : Math.max(2, (v / maxV) * plotH));
+    const yFor = (v) => marginTop + plotH - (v / maxV) * plotH;
 
-    let bars = '';
-    const curvePoints = [];
-    data.forEach((d, i) => {
-      const groupCx = marginLeft + groupW * i + groupW / 2;
-      const annualX = groupCx - gap / 2 - barW;
-      const lifetimeX = groupCx + gap / 2;
-      const annualH = barHeight(d.annual);
-      const lifetimeH = barHeight(d.lifetime);
-      const annualY = marginTop + plotH - annualH;
-      const lifetimeY = marginTop + plotH - lifetimeH;
-      const annualColor = isAnnual ? 'var(--active)' : 'var(--inactive)';
-      const lifetimeColor = isAnnual ? 'var(--inactive)' : 'var(--active)';
-      const activeY = isAnnual ? annualY : lifetimeY;
-      const activeV = isAnnual ? d.annual : d.lifetime;
-      curvePoints.push([groupCx, activeY]);
+    const annualPoints = data.map((d, i) => [marginLeft + stepX * i, yFor(d.annual)]);
+    const lifetimePoints = data.map((d, i) => [marginLeft + stepX * i, yFor(d.lifetime)]);
+    const activePoints = isAnnual ? annualPoints : lifetimePoints;
+    const inactivePoints = isAnnual ? lifetimePoints : annualPoints;
 
-      bars += `
-        <g class="growth-col-group" data-scenario="${escapeAttr(d.key)}">
-          <rect x="${(groupCx - groupW / 2).toFixed(1)}" y="${marginTop}" width="${groupW.toFixed(1)}" height="${plotH}" fill="transparent"/>
-          <rect class="growth-bar" x="${annualX.toFixed(1)}" y="${annualY.toFixed(1)}" width="${barW.toFixed(1)}" height="${annualH.toFixed(1)}" rx="4" fill="${annualColor}"
-            data-tip="${escapeAttr(d.xLabel)} — Annual: ${fixed(d.annual, 0)} kg"></rect>
-          <rect class="growth-bar" x="${lifetimeX.toFixed(1)}" y="${lifetimeY.toFixed(1)}" width="${barW.toFixed(1)}" height="${lifetimeH.toFixed(1)}" rx="4" fill="${lifetimeColor}"
-            data-tip="${escapeAttr(d.xLabel)} — Lifetime: ${fixed(d.lifetime, 0)} kg"></rect>
-          ${d.selected ? `<text x="${groupCx.toFixed(1)}" y="${(activeY - 8).toFixed(1)}" text-anchor="middle" fill="var(--text-primary)" style="font-size:12px;font-weight:700;">${fixed(activeV, 0)} kg</text>` : ''}
-          <text x="${groupCx.toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
-            fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
-            style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${d.xLabel}</text>
-        </g>`;
-    });
+    const dotsFor = (points, color) => points.map(([px, py], i) => {
+      const d = data[i];
+      return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${d.selected ? 5 : 4}" fill="${color}" stroke="var(--surface-2)" stroke-width="2"/>`;
+    }).join('');
 
-    const curveD = smoothPath(curvePoints);
-    const dots = curvePoints.map(([px, py]) =>
-      `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="var(--active)" stroke="var(--surface-2)" stroke-width="2"/>`).join('');
+    // One combined tooltip per stage (both series at that X), triggered from a full-height hit
+    // column — the reader never has to land precisely on a 2px line or a dot to get a value.
+    const hitAreas = data.map((d, i) => {
+      const cx = marginLeft + stepX * i;
+      const tip = `${escapeAttr(d.xLabel)} — Annual: ${fixed(d.annual, 0)} kg · Lifetime: ${fixed(d.lifetime, 0)} kg`;
+      return `<rect class="growth-hit" data-scenario="${escapeAttr(d.key)}" data-tip="${tip}"
+        x="${(cx - (stepX || plotW) / 2).toFixed(1)}" y="${marginTop}" width="${(stepX || plotW).toFixed(1)}" height="${plotH}" fill="transparent" style="cursor:pointer;"/>`;
+    }).join('');
 
-    $('growthChartHost').innerHTML = `
+    const labels = data.map((d, i) => `
+      <text x="${(marginLeft + stepX * i).toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
+        fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
+        style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${d.xLabel}</text>`).join('');
+
+    const activeValueLabels = data.map((d, i) => {
+      if (!d.selected) return '';
+      const [px, py] = activePoints[i];
+      const v = isAnnual ? d.annual : d.lifetime;
+      return `<text x="${px.toFixed(1)}" y="${(py - 12).toFixed(1)}" text-anchor="middle" fill="var(--text-primary)" style="font-size:12px;font-weight:700;">${fixed(v, 0)} kg</text>`;
+    }).join('');
+
+    const host = $('growthCurveHost');
+    host.innerHTML = `
       <svg class="growth-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
         <line x1="${marginLeft}" y1="${marginTop + plotH}" x2="${width - marginRight}" y2="${marginTop + plotH}" stroke="var(--baseline)" stroke-width="1"/>
-        ${bars}
-        <path d="${curveD}" fill="none" stroke="var(--active)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        ${dots}
+        <path d="${smoothPath(inactivePoints)}" fill="none" stroke="var(--inactive)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${smoothPath(activePoints)}" fill="none" stroke="var(--active)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dotsFor(inactivePoints, 'var(--inactive)')}
+        ${dotsFor(activePoints, 'var(--active)')}
+        ${activeValueLabels}
+        ${labels}
+        ${hitAreas}
       </svg>`;
-
-    $('growthChartHost').querySelectorAll('.growth-bar').forEach(el => {
-      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
-      el.addEventListener('mouseleave', hideTooltip);
-    });
-    $('growthChartHost').querySelectorAll('.growth-col-group').forEach(el => {
-      el.addEventListener('click', () => {
-        state.scenarioLabel = el.dataset.scenario;
-        renderScenarioTabs();
-        renderAll();
-      });
-    });
-
-    $('growthLegend').innerHTML = `
-      <div class="row"><span class="swatch" style="background:${isAnnual ? 'var(--active)' : 'var(--inactive)'}"></span>Annual${isAnnual ? ' (active)' : ''}</div>
-      <div class="row"><span class="swatch" style="background:${isAnnual ? 'var(--inactive)' : 'var(--active)'}"></span>Lifetime${!isAnnual ? ' (active)' : ''}</div>
-      <div class="row"><span class="dot"></span>Growth curve, active series</div>`;
+    bindGrowthInteractions(host, '.growth-hit');
+    $('growthCurveLegend').innerHTML = growthLegendHtml(isAnnual, true);
   }
 
   function kpiIcon(kind) {

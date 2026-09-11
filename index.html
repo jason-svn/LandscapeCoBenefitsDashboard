@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Landscape Co-Benefits Dashboard</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root {
     color-scheme: light;
@@ -151,11 +150,21 @@
   .panel .panel-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
   .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 
-  #map { height: 320px; border-radius: 10px; margin-top: 4px; background: var(--surface-1); }
-  #mapEmpty {
-    height: 320px; border-radius: 10px; background: var(--surface-1); display: flex;
-    align-items: center; justify-content: center; text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px;
+  /* --- Region map: abstract country outline, one highlighted region, no basemap tiles --- */
+  #regionMapHost { position: relative; height: 320px; border-radius: 10px; margin-top: 4px; background: var(--surface-1); overflow: hidden; }
+  #regionMapHost svg { width: 100%; height: 100%; display: block; }
+  .region-shape { fill: var(--gridline); stroke: var(--surface-1); stroke-width: 1; }
+  .region-shape.highlight { fill: var(--slot-1); stroke: var(--text-primary); stroke-width: 1.4; }
+  .region-pin { fill: var(--text-primary); stroke: var(--surface-1); stroke-width: 1.5; }
+  .region-status {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px; flex-direction: column; gap: 8px;
   }
+  .region-spinner {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--gridline);
+    border-top-color: var(--slot-1); animation: region-spin 0.8s linear infinite;
+  }
+  @keyframes region-spin { to { transform: rotate(360deg); } }
 
   /* donut */
   .donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center; }
@@ -278,8 +287,7 @@
             <div class="panel-sub" id="locationSub">&nbsp;</div>
           </div>
         </div>
-        <div id="map"></div>
-        <div id="mapEmpty" style="display:none;">Location wasn't set in Revit's Site Location when this file was exported.</div>
+        <div id="regionMapHost"></div>
       </div>
 
       <div class="panel">
@@ -368,7 +376,6 @@
 
 <div class="tooltip" id="tooltip"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 (function () {
   "use strict";
@@ -419,7 +426,37 @@
     },
   };
 
-  const state = { data: null, period: 'annual', speciesView: 'chart', scenarioLabel: null, growthMetric: 'carbon', map: null, marker: null };
+  const state = { data: null, period: 'annual', speciesView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
+
+  // ISO 3166-1 alpha-2 -> alpha-3, standard reference table (stable, does not change) — bridges the
+  // reverse-geocoder's alpha-2 country code to geoBoundaries' alpha-3 lookup key.
+  const ISO2_TO_3 = {
+    ad:'AND',ae:'ARE',af:'AFG',ag:'ATG',ai:'AIA',al:'ALB',am:'ARM',ao:'AGO',aq:'ATA',ar:'ARG',as:'ASM',at:'AUT',au:'AUS',aw:'ABW',ax:'ALA',az:'AZE',
+    ba:'BIH',bb:'BRB',bd:'BGD',be:'BEL',bf:'BFA',bg:'BGR',bh:'BHR',bi:'BDI',bj:'BEN',bl:'BLM',bm:'BMU',bn:'BRN',bo:'BOL',bq:'BES',br:'BRA',bs:'BHS',bt:'BTN',bv:'BVT',bw:'BWA',by:'BLR',bz:'BLZ',
+    ca:'CAN',cc:'CCK',cd:'COD',cf:'CAF',cg:'COG',ch:'CHE',ci:'CIV',ck:'COK',cl:'CHL',cm:'CMR',cn:'CHN',co:'COL',cr:'CRI',cu:'CUB',cv:'CPV',cw:'CUW',cx:'CXR',cy:'CYP',cz:'CZE',
+    de:'DEU',dj:'DJI',dk:'DNK',dm:'DMA',do:'DOM',dz:'DZA',
+    ec:'ECU',ee:'EST',eg:'EGY',eh:'ESH',er:'ERI',es:'ESP',et:'ETH',
+    fi:'FIN',fj:'FJI',fk:'FLK',fm:'FSM',fo:'FRO',fr:'FRA',
+    ga:'GAB',gb:'GBR',gd:'GRD',ge:'GEO',gf:'GUF',gg:'GGY',gh:'GHA',gi:'GIB',gl:'GRL',gm:'GMB',gn:'GIN',gp:'GLP',gq:'GNQ',gr:'GRC',gs:'SGS',gt:'GTM',gu:'GUM',gw:'GNB',gy:'GUY',
+    hk:'HKG',hm:'HMD',hn:'HND',hr:'HRV',ht:'HTI',hu:'HUN',
+    id:'IDN',ie:'IRL',il:'ISR',im:'IMN',in:'IND',io:'IOT',iq:'IRQ',ir:'IRN',is:'ISL',it:'ITA',
+    je:'JEY',jm:'JAM',jo:'JOR',jp:'JPN',
+    ke:'KEN',kg:'KGZ',kh:'KHM',ki:'KIR',km:'COM',kn:'KNA',kp:'PRK',kr:'KOR',kw:'KWT',ky:'CYM',kz:'KAZ',
+    la:'LAO',lb:'LBN',lc:'LCA',li:'LIE',lk:'LKA',lr:'LBR',ls:'LSO',lt:'LTU',lu:'LUX',lv:'LVA',ly:'LBY',
+    ma:'MAR',mc:'MCO',md:'MDA',me:'MNE',mf:'MAF',mg:'MDG',mh:'MHL',mk:'MKD',ml:'MLI',mm:'MMR',mn:'MNG',mo:'MAC',mp:'MNP',mq:'MTQ',mr:'MRT',ms:'MSR',mt:'MLT',mu:'MUS',mv:'MDV',mw:'MWI',mx:'MEX',my:'MYS',mz:'MOZ',
+    na:'NAM',nc:'NCL',ne:'NER',nf:'NFK',ng:'NGA',ni:'NIC',nl:'NLD',no:'NOR',np:'NPL',nr:'NRU',nu:'NIU',nz:'NZL',
+    om:'OMN',
+    pa:'PAN',pe:'PER',pf:'PYF',pg:'PNG',ph:'PHL',pk:'PAK',pl:'POL',pm:'SPM',pn:'PCN',pr:'PRI',ps:'PSE',pt:'PRT',pw:'PLW',py:'PRY',
+    qa:'QAT',
+    re:'REU',ro:'ROU',rs:'SRB',ru:'RUS',rw:'RWA',
+    sa:'SAU',sb:'SLB',sc:'SYC',sd:'SDN',se:'SWE',sg:'SGP',sh:'SHN',si:'SVN',sj:'SJM',sk:'SVK',sl:'SLE',sm:'SMR',sn:'SEN',so:'SOM',sr:'SUR',ss:'SSD',st:'STP',sv:'SLV',sx:'SXM',sy:'SYR',sz:'SWZ',
+    tc:'TCA',td:'TCD',tf:'ATF',tg:'TGO',th:'THA',tj:'TJK',tk:'TKL',tl:'TLS',tm:'TKM',tn:'TUN',to:'TON',tr:'TUR',tt:'TTO',tv:'TUV',tw:'TWN',tz:'TZA',
+    ua:'UKR',ug:'UGA',um:'UMI',us:'USA',uy:'URY',uz:'UZB',
+    va:'VAT',vc:'VCT',ve:'VEN',vg:'VGB',vi:'VIR',vn:'VNM',vu:'VUT',
+    wf:'WLF',ws:'WSM',
+    ye:'YEM',yt:'MYT',
+    za:'ZAF',zm:'ZMB',zw:'ZWE',
+  };
 
   const $ = (id) => document.getElementById(id);
   const tooltip = $('tooltip');
@@ -835,6 +872,152 @@
   }
 
   // ---------------- Map ----------------
+  // Abstract country outline with one highlighted admin-1 region (state/province) — not a real
+  // basemap. Two live public lookups, each cached so a period/scenario toggle never re-fetches:
+  // BigDataCloud's client-side reverse geocoder (reliably CORS-enabled, unlike Nominatim's demo
+  // server, whose CDN intermittently drops the CORS header on a cache hit) for the country, then
+  // geoBoundaries' simplified ADM1 boundaries for that one country.
+  const REGION_MEMORY_CACHE = new Map();
+
+  function sessionCacheGet(key) {
+    try { const raw = sessionStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
+    catch { return null; }
+  }
+  function sessionCacheSet(key, value) {
+    try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full/unavailable — just skip caching */ }
+  }
+
+  function regionStatusHtml(message, spinner) {
+    return `<div class="region-status">${spinner ? '<div class="region-spinner"></div>' : ''}<div>${message}</div></div>`;
+  }
+
+  function geometryRings(geometry) {
+    if (!geometry) return [];
+    if (geometry.type === 'Polygon') return [geometry.coordinates];
+    if (geometry.type === 'MultiPolygon') return geometry.coordinates;
+    return [];
+  }
+
+  function pointInRing(pt, ring) {
+    let inside = false;
+    const [x, y] = pt;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  // A point counts as inside a Polygon/MultiPolygon geometry if it's inside some ring 0 (outer)
+  // and not inside any of that polygon's later rings (holes) — GeoJSON's own winding direction
+  // doesn't matter here since this only tests containment, never renders the ring itself.
+  function pointInGeometry(pt, geometry) {
+    for (const polygon of geometryRings(geometry)) {
+      if (!pointInRing(pt, polygon[0])) continue;
+      const inHole = polygon.slice(1).some((ring) => pointInRing(pt, ring));
+      if (!inHole) return true;
+    }
+    return false;
+  }
+
+  // Simple equirectangular fit: linear in both lng and lat, with a cos(latitude) correction so a
+  // country isn't visibly stretched east-west at higher latitudes. Illustrative, not cartographic —
+  // fine for "which region is this", not for measuring anything off the shape.
+  function buildProjector(features, width, height, pad) {
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    features.forEach((f) => geometryRings(f.geometry).forEach((polygon) => polygon.forEach((ring) => ring.forEach(([lng, lat]) => {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }))));
+    const centerLat = (minLat + maxLat) / 2;
+    const cos = Math.max(0.15, Math.cos(centerLat * Math.PI / 180)); // floor near the poles
+    const spanX = Math.max(1e-6, (maxLng - minLng) * cos);
+    const spanY = Math.max(1e-6, maxLat - minLat);
+    const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY);
+    const offsetX = (width - spanX * scale) / 2;
+    const offsetY = (height - spanY * scale) / 2;
+    return (lng, lat) => [offsetX + (lng - minLng) * cos * scale, offsetY + (maxLat - lat) * scale];
+  }
+
+  function geometryToPath(geometry, project) {
+    return geometryRings(geometry).map((polygon) => polygon.map((ring) =>
+      'M' + ring.map(([lng, lat]) => project(lng, lat).map((n) => n.toFixed(1)).join(',')).join('L') + 'Z'
+    ).join(' ')).join(' ');
+  }
+
+  // geoBoundaries' download URLs are Git-LFS-tracked files on GitHub, given as the human
+  // "github.com/{owner}/{repo}/raw/{ref}/{path}" link. That link 302s to media.githubusercontent.com
+  // for the real content, but the 302 response itself carries an empty (invalid) CORS header, which
+  // makes browser fetch() abort before it ever follows the redirect — so resolve straight to the
+  // final media host ourselves instead of letting the browser chase the redirect chain.
+  function toGithubMediaUrl(githubRawUrl) {
+    const m = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/raw\/([^/]+)\/(.+)$/.exec(githubRawUrl);
+    return m ? `https://media.githubusercontent.com/media/${m[1]}/${m[2]}/${m[3]}/${m[4]}` : githubRawUrl;
+  }
+
+  async function loadRegionMap(loc) {
+    const host = $('regionMapHost');
+    const key = loc.latitude.toFixed(3) + ',' + loc.longitude.toFixed(3);
+    state.regionMapKey = key;
+
+    const cached = REGION_MEMORY_CACHE.get(key);
+    if (cached) {
+      renderRegionMapSvg(host, cached, loc);
+      return;
+    }
+
+    host.innerHTML = regionStatusHtml('Loading region map…', true);
+
+    try {
+      const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${loc.latitude}&longitude=${loc.longitude}&localityLanguage=en`);
+      if (!geoRes.ok) throw new Error('reverse geocode failed');
+      const geo = await geoRes.json();
+      const iso3 = geo.countryCode && ISO2_TO_3[geo.countryCode.toLowerCase()];
+      if (!iso3) throw new Error('country not resolved for this location');
+
+      let boundaries = sessionCacheGet('regionGeo:' + iso3);
+      if (!boundaries) {
+        const metaRes = await fetch(`https://www.geoboundaries.org/api/current/gbOpen/${iso3}/ADM1/`);
+        if (!metaRes.ok) throw new Error('geoBoundaries has no ADM1 data for ' + iso3);
+        const meta = await metaRes.json();
+        const gjUrl = toGithubMediaUrl(meta.simplifiedGeometryGeoJSON || meta.gjDownloadURL || '');
+        if (!gjUrl) throw new Error('no boundary file listed for ' + iso3);
+        const gjRes = await fetch(gjUrl);
+        if (!gjRes.ok) throw new Error('boundary download failed');
+        boundaries = await gjRes.json();
+        sessionCacheSet('regionGeo:' + iso3, boundaries);
+      }
+
+      const point = [loc.longitude, loc.latitude];
+      const matchIndex = boundaries.features.findIndex((f) => pointInGeometry(point, f.geometry));
+      const result = { boundaries, matchIndex };
+      REGION_MEMORY_CACHE.set(key, result);
+      if (state.regionMapKey === key) renderRegionMapSvg(host, result, loc);
+    } catch (err) {
+      if (state.regionMapKey === key) {
+        host.innerHTML = regionStatusHtml(
+          'Region boundaries aren’t available for this location — showing coordinates only: '
+          + loc.latitude.toFixed(4) + ', ' + loc.longitude.toFixed(4), false);
+      }
+    }
+  }
+
+  function renderRegionMapSvg(host, result, loc) {
+    const width = 400, height = 320, pad = 16;
+    const project = buildProjector(result.boundaries.features, width, height, pad);
+    const shapes = result.boundaries.features.map((f, i) => {
+      const isMatch = i === result.matchIndex;
+      const name = (f.properties && (f.properties.shapeName || f.properties.name)) || '';
+      return `<path class="region-shape${isMatch ? ' highlight' : ''}" d="${geometryToPath(f.geometry, project)}">${name ? `<title>${name}</title>` : ''}</path>`;
+    }).join('');
+    const [px, py] = project(loc.longitude, loc.latitude);
+    const pin = `<circle class="region-pin" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.5"><title>${loc.placeName || 'Project site'}</title></circle>`;
+    host.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">${shapes}${pin}</svg>`;
+  }
+
   function renderLocation(loc) {
     const hasLoc = loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number'
       && !(loc.latitude === 0 && loc.longitude === 0);
@@ -842,21 +1025,15 @@
       ? (loc.placeName || (loc.latitude.toFixed(4) + ', ' + loc.longitude.toFixed(4)))
       : 'No location set';
 
-    $('map').style.display = hasLoc ? 'block' : 'none';
-    $('mapEmpty').style.display = hasLoc ? 'none' : 'flex';
-    if (!hasLoc) return;
-
-    if (!state.map) {
-      state.map = L.map('map', { scrollWheelZoom: false });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(state.map);
+    if (!hasLoc) {
+      state.regionMapKey = null;
+      $('regionMapHost').innerHTML = regionStatusHtml('Location wasn’t set in Revit’s Site Location when this file was exported.', false);
+      return;
     }
-    state.map.setView([loc.latitude, loc.longitude], 15);
-    if (state.marker) state.marker.remove();
-    state.marker = L.marker([loc.latitude, loc.longitude]).addTo(state.map)
-      .bindPopup(loc.placeName || 'Project site').openPopup();
-    setTimeout(() => state.map.invalidateSize(), 50);
+
+    const key = loc.latitude.toFixed(3) + ',' + loc.longitude.toFixed(3);
+    if (state.regionMapKey === key) return; // already showing this location — a period/scenario toggle doesn't move the site
+    loadRegionMap(loc);
   }
 
   // ---------------- Donut ----------------

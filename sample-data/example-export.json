@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "project": {
     "title": "Hereford Station Transport Hub",
     "currency": "GBP",
@@ -74,6 +74,78 @@
         "lightingFixtureCount": 24,
         "darkSkyCompliantFixtureCount": 19,
         "lightingCompliancePercent": 79.2
+      },
+      "bng": {
+        "metricVersion": "The Statutory Biodiversity Metric 2024-07-23",
+        "baselineUnits": 3.6,
+        "postInterventionUnits": 4.8,
+        "netChangeUnits": 1.2,
+        "netChangePercent": 33.33333333333333,
+        "statutoryNetGainPercent": 10,
+        "meetsStatutoryNetGain": true,
+        "isComplete": true,
+        "retainedUnits": 1.8,
+        "enhancedUnits": 1.15,
+        "createdUnits": 1.85,
+        "lostUnits": 1.2,
+        "floorCount": 14,
+        "currentFloorCount": 14,
+        "retainedFloorCount": 4,
+        "enhancedFloorCount": 2,
+        "lostFloorCount": 3,
+        "createdFloorCount": 5,
+        "checkDataFloorCount": 1,
+        "staleFloorCount": 0,
+        "notAssessedFloorCount": 0,
+        "excludedFloorCount": 0,
+        "totalAreaHectares": 0.62,
+        "assessedAreaHectares": 0.62,
+        "byBroadHabitat": [
+          {
+            "name": "Grassland",
+            "floorCount": 6,
+            "areaHectares": 0.21,
+            "habitatUnits": 2.1
+          },
+          {
+            "name": "Heathland and shrub",
+            "floorCount": 3,
+            "areaHectares": 0.09,
+            "habitatUnits": 1.2
+          },
+          {
+            "name": "Urban",
+            "floorCount": 1,
+            "areaHectares": 0.08,
+            "habitatUnits": 0.9
+          },
+          {
+            "name": "Wetland",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ],
+        "byDistinctiveness": [
+          {
+            "name": "Medium",
+            "floorCount": 7,
+            "areaHectares": 0.24,
+            "habitatUnits": 2.9
+          },
+          {
+            "name": "Low",
+            "floorCount": 3,
+            "areaHectares": 0.14,
+            "habitatUnits": 1.3
+          },
+          {
+            "name": "High",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ]
       },
       "species": [
         {
@@ -297,6 +369,78 @@
         "darkSkyCompliantFixtureCount": 19,
         "lightingCompliancePercent": 79.2
       },
+      "bng": {
+        "metricVersion": "The Statutory Biodiversity Metric 2024-07-23",
+        "baselineUnits": 3.6,
+        "postInterventionUnits": 4.8,
+        "netChangeUnits": 1.2,
+        "netChangePercent": 33.33333333333333,
+        "statutoryNetGainPercent": 10,
+        "meetsStatutoryNetGain": true,
+        "isComplete": true,
+        "retainedUnits": 1.8,
+        "enhancedUnits": 1.15,
+        "createdUnits": 1.85,
+        "lostUnits": 1.2,
+        "floorCount": 14,
+        "currentFloorCount": 14,
+        "retainedFloorCount": 4,
+        "enhancedFloorCount": 2,
+        "lostFloorCount": 3,
+        "createdFloorCount": 5,
+        "checkDataFloorCount": 1,
+        "staleFloorCount": 0,
+        "notAssessedFloorCount": 0,
+        "excludedFloorCount": 0,
+        "totalAreaHectares": 0.62,
+        "assessedAreaHectares": 0.62,
+        "byBroadHabitat": [
+          {
+            "name": "Grassland",
+            "floorCount": 6,
+            "areaHectares": 0.21,
+            "habitatUnits": 2.1
+          },
+          {
+            "name": "Heathland and shrub",
+            "floorCount": 3,
+            "areaHectares": 0.09,
+            "habitatUnits": 1.2
+          },
+          {
+            "name": "Urban",
+            "floorCount": 1,
+            "areaHectares": 0.08,
+            "habitatUnits": 0.9
+          },
+          {
+            "name": "Wetland",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ],
+        "byDistinctiveness": [
+          {
+            "name": "Medium",
+            "floorCount": 7,
+            "areaHectares": 0.24,
+            "habitatUnits": 2.9
+          },
+          {
+            "name": "Low",
+            "floorCount": 3,
+            "areaHectares": 0.14,
+            "habitatUnits": 1.3
+          },
+          {
+            "name": "High",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ]
+      },
       "species": [
         {
           "speciesCode": "ACPL",
@@ -518,6 +662,78 @@
         "lightingFixtureCount": 24,
         "darkSkyCompliantFixtureCount": 19,
         "lightingCompliancePercent": 79.2
+      },
+      "bng": {
+        "metricVersion": "The Statutory Biodiversity Metric 2024-07-23",
+        "baselineUnits": 3.6,
+        "postInterventionUnits": 4.8,
+        "netChangeUnits": 1.2,
+        "netChangePercent": 33.33333333333333,
+        "statutoryNetGainPercent": 10,
+        "meetsStatutoryNetGain": true,
+        "isComplete": true,
+        "retainedUnits": 1.8,
+        "enhancedUnits": 1.15,
+        "createdUnits": 1.85,
+        "lostUnits": 1.2,
+        "floorCount": 14,
+        "currentFloorCount": 14,
+        "retainedFloorCount": 4,
+        "enhancedFloorCount": 2,
+        "lostFloorCount": 3,
+        "createdFloorCount": 5,
+        "checkDataFloorCount": 1,
+        "staleFloorCount": 0,
+        "notAssessedFloorCount": 0,
+        "excludedFloorCount": 0,
+        "totalAreaHectares": 0.62,
+        "assessedAreaHectares": 0.62,
+        "byBroadHabitat": [
+          {
+            "name": "Grassland",
+            "floorCount": 6,
+            "areaHectares": 0.21,
+            "habitatUnits": 2.1
+          },
+          {
+            "name": "Heathland and shrub",
+            "floorCount": 3,
+            "areaHectares": 0.09,
+            "habitatUnits": 1.2
+          },
+          {
+            "name": "Urban",
+            "floorCount": 1,
+            "areaHectares": 0.08,
+            "habitatUnits": 0.9
+          },
+          {
+            "name": "Wetland",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ],
+        "byDistinctiveness": [
+          {
+            "name": "Medium",
+            "floorCount": 7,
+            "areaHectares": 0.24,
+            "habitatUnits": 2.9
+          },
+          {
+            "name": "Low",
+            "floorCount": 3,
+            "areaHectares": 0.14,
+            "habitatUnits": 1.3
+          },
+          {
+            "name": "High",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ]
       },
       "species": [
         {
@@ -741,6 +957,78 @@
         "darkSkyCompliantFixtureCount": 19,
         "lightingCompliancePercent": 79.2
       },
+      "bng": {
+        "metricVersion": "The Statutory Biodiversity Metric 2024-07-23",
+        "baselineUnits": 3.6,
+        "postInterventionUnits": 4.8,
+        "netChangeUnits": 1.2,
+        "netChangePercent": 33.33333333333333,
+        "statutoryNetGainPercent": 10,
+        "meetsStatutoryNetGain": true,
+        "isComplete": true,
+        "retainedUnits": 1.8,
+        "enhancedUnits": 1.15,
+        "createdUnits": 1.85,
+        "lostUnits": 1.2,
+        "floorCount": 14,
+        "currentFloorCount": 14,
+        "retainedFloorCount": 4,
+        "enhancedFloorCount": 2,
+        "lostFloorCount": 3,
+        "createdFloorCount": 5,
+        "checkDataFloorCount": 1,
+        "staleFloorCount": 0,
+        "notAssessedFloorCount": 0,
+        "excludedFloorCount": 0,
+        "totalAreaHectares": 0.62,
+        "assessedAreaHectares": 0.62,
+        "byBroadHabitat": [
+          {
+            "name": "Grassland",
+            "floorCount": 6,
+            "areaHectares": 0.21,
+            "habitatUnits": 2.1
+          },
+          {
+            "name": "Heathland and shrub",
+            "floorCount": 3,
+            "areaHectares": 0.09,
+            "habitatUnits": 1.2
+          },
+          {
+            "name": "Urban",
+            "floorCount": 1,
+            "areaHectares": 0.08,
+            "habitatUnits": 0.9
+          },
+          {
+            "name": "Wetland",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ],
+        "byDistinctiveness": [
+          {
+            "name": "Medium",
+            "floorCount": 7,
+            "areaHectares": 0.24,
+            "habitatUnits": 2.9
+          },
+          {
+            "name": "Low",
+            "floorCount": 3,
+            "areaHectares": 0.14,
+            "habitatUnits": 1.3
+          },
+          {
+            "name": "High",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ]
+      },
       "species": [
         {
           "speciesCode": "ACPL",
@@ -962,6 +1250,78 @@
         "lightingFixtureCount": 24,
         "darkSkyCompliantFixtureCount": 19,
         "lightingCompliancePercent": 79.2
+      },
+      "bng": {
+        "metricVersion": "The Statutory Biodiversity Metric 2024-07-23",
+        "baselineUnits": 3.6,
+        "postInterventionUnits": 4.8,
+        "netChangeUnits": 1.2,
+        "netChangePercent": 33.33333333333333,
+        "statutoryNetGainPercent": 10,
+        "meetsStatutoryNetGain": true,
+        "isComplete": true,
+        "retainedUnits": 1.8,
+        "enhancedUnits": 1.15,
+        "createdUnits": 1.85,
+        "lostUnits": 1.2,
+        "floorCount": 14,
+        "currentFloorCount": 14,
+        "retainedFloorCount": 4,
+        "enhancedFloorCount": 2,
+        "lostFloorCount": 3,
+        "createdFloorCount": 5,
+        "checkDataFloorCount": 1,
+        "staleFloorCount": 0,
+        "notAssessedFloorCount": 0,
+        "excludedFloorCount": 0,
+        "totalAreaHectares": 0.62,
+        "assessedAreaHectares": 0.62,
+        "byBroadHabitat": [
+          {
+            "name": "Grassland",
+            "floorCount": 6,
+            "areaHectares": 0.21,
+            "habitatUnits": 2.1
+          },
+          {
+            "name": "Heathland and shrub",
+            "floorCount": 3,
+            "areaHectares": 0.09,
+            "habitatUnits": 1.2
+          },
+          {
+            "name": "Urban",
+            "floorCount": 1,
+            "areaHectares": 0.08,
+            "habitatUnits": 0.9
+          },
+          {
+            "name": "Wetland",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ],
+        "byDistinctiveness": [
+          {
+            "name": "Medium",
+            "floorCount": 7,
+            "areaHectares": 0.24,
+            "habitatUnits": 2.9
+          },
+          {
+            "name": "Low",
+            "floorCount": 3,
+            "areaHectares": 0.14,
+            "habitatUnits": 1.3
+          },
+          {
+            "name": "High",
+            "floorCount": 1,
+            "areaHectares": 0.04,
+            "habitatUnits": 0.6
+          }
+        ]
       },
       "species": [
         {

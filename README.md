@@ -47,7 +47,8 @@ with the bundled example (`sample-data/example-export.json`).
 
 ## What's in the export
 
-The JSON schema this page expects (schema version 2) is produced by
+The JSON schema this page expects (schema version 3; version 2 still loads,
+just without the BNG panel) is produced by
 `DashboardJsonExportService` in the
 [LandscapeDataManager](https://github.com/jason-svn/LandscapeDataManager)
 repo (`src/WWP.LandscapeDataManager.App.Dashboard`). All mass/volume figures
@@ -59,7 +60,7 @@ Top-level shape:
 
 ```jsonc
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "project": { "title", "currency", "location": { "latitude", "longitude", "placeName" }, "generatedAt" },
   "scenarios": [
     {
@@ -68,6 +69,7 @@ Top-level shape:
       "isPrimary": true,
       "totals": { /* this design option's own annual + lifetime KPI numbers */ },
       "siteKpi": { /* canopy cover, native species ratio, lighting compliance, ... */ },
+      "bng": { /* BNG baseline vs post-intervention units, net change %, 10% target, floor counts per role, byBroadHabitat */ },
       "species": [ /* per-species subtotals, scoped to this design option */ ],
       "floorTypes": [ /* per floor/softscape-type subtotals */ ]
     }
@@ -75,6 +77,19 @@ Top-level shape:
   ]
 }
 ```
+
+**BNG follows the metric's on-site headline.** Each floor's Revit phases decide
+its row of the Statutory Biodiversity Metric: floors created in the project's
+first phase (e.g. Existing) are the baseline (sheet A-1) — retained, lost if
+demolished, or enhanced (sheet A-3) when `!_S_PLT_BNGInput_Enhanced_YesNo` is
+ticked — and floors created later (e.g. New Construction) are new habitat
+(sheet A-2). `bng.baselineUnits` is the A-1 total; `bng.postInterventionUnits`
+is retained + enhanced + created units; `bng.netChangePercent` is their change
+(null without a baseline), checked against the statutory 10% in
+`bng.meetsStatutoryNetGain`. Only floors whose stored result still matches
+their inputs, area and phase count; stale or unassessed ones are counted in
+`staleFloorCount` / `notAssessedFloorCount` and make `isComplete` false.
+Hedgerows, watercourses, off-site units and trading rules aren't modelled.
 
 **One scenario per design option, never summed.** If a project uses design
 options to model the same planted layout at different tree ages (this WWP

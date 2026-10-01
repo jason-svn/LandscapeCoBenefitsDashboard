@@ -1,5 +1,11 @@
 # Landscape Co-Benefits Dashboard
 
+**Live dashboard:** <https://jason-svn.github.io/LandscapeCoBenefitsDashboard/> — open it, then
+drop in a JSON file from the LandscapeDataManager Dashboard's **Export JSON** (or click
+**Load sample data**). Exports come from
+[LandscapeDataManager](https://github.com/jason-svn/LandscapeDataManager), whose
+[quick-start guide](https://jason-svn.github.io/LandscapeDataManager/) covers installing the Revit add-in.
+
 A single self-contained HTML page that turns a **LandscapeDataManager** JSON
 export into a PowerBI-style dashboard, styled to match the LandscapeDataManager
 Dashboard app itself (mostly green, quiet shadcn-style neutral cards, a gold

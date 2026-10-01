@@ -270,6 +270,26 @@
   table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .table-scroll { overflow-x: auto; }
 
+  /* Growth-year slicer: a stepped range input with labelled, clickable stops under it */
+  .year-slicer { display: flex; align-items: center; gap: 10px; background: var(--surface-1); border-radius: 8px; padding: 6px 12px 4px; }
+  .slicer-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+  .slicer-track { position: relative; width: 240px; }
+  @media (max-width: 520px) { .slicer-track { width: 170px; } }
+  .slicer-track input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; margin: 0; background: transparent; cursor: pointer; display: block; }
+  .slicer-track input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, var(--brand-500) var(--fill, 0%), var(--gridline) var(--fill, 0%)); }
+  .slicer-track input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--gridline); }
+  .slicer-track input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--brand-500); }
+  .slicer-track input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+    background: var(--surface-2); border: 2px solid var(--brand-700); box-shadow: 0 1px 2px var(--border); }
+  .slicer-track input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--brand-700); }
+  .slicer-track input[type=range]:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 3px; border-radius: 4px; }
+  /* Tick labels sit under each stop: the first/last align to the track ends, the rest centre on their stop */
+  .slicer-ticks { display: flex; justify-content: space-between; margin: 0 -2px; }
+  .slicer-ticks button { border: none; background: transparent; font: inherit; font-size: 11px; font-weight: 600; color: var(--text-muted);
+    padding: 1px 2px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .slicer-ticks button:hover { color: var(--text-secondary); }
+  .slicer-ticks button.active { color: var(--brand-700); }
   .toggle-tabs { display: flex; gap: 4px; background: var(--surface-1); border-radius: 8px; padding: 3px; }
   .toggle-tabs button { border: none; background: transparent; font: inherit; font-size: 12px; font-weight: 600;
     padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); }
@@ -304,7 +324,7 @@
       </div>
     </div>
     <div class="top-actions">
-      <div class="toggle-tabs" id="scenarioTabs" style="display:none;"></div>
+      <div class="year-slicer" id="scenarioTabs" style="display:none;"></div>
       <div class="toggle-tabs" id="periodTabs" style="display:none;">
         <button data-period="annual" class="active">Annual</button>
         <button data-period="lifetime">Lifetime</button>
@@ -713,6 +733,10 @@
     renderAll();
   }
 
+  // Scenario slicer: one stop per design option (growth year), in file order. Built once per
+  // loaded file; dragging/arrowing only moves the thumb and readout, so focus stays on the input.
+  const scenarioLabelOf = (s) => s.years != null ? s.years + ' yr' : s.label;
+
   function renderScenarioTabs() {
     const scenarios = state.data.scenarios;
     const wrap = $('scenarioTabs');
@@ -721,19 +745,40 @@
       return;
     }
     wrap.style.display = 'flex';
-    wrap.innerHTML = scenarios.map(s => {
-      const tabLabel = s.years != null ? (s.years + ' yr') : s.label;
-      const active = s.label === state.scenarioLabel ? ' active' : '';
-      return `<button data-scenario="${escapeAttr(s.label)}" class="${active.trim()}" title="${escapeAttr(s.label)}">${tabLabel}</button>`;
-    }).join('');
+    const index = Math.max(0, scenarios.findIndex(s => s.label === state.scenarioLabel));
+    const key = scenarios.map(s => s.label).join('|');
+    if (wrap.dataset.key !== key || !wrap.querySelector('input')) {
+      wrap.dataset.key = key;
+      wrap.innerHTML = `
+        <label class="slicer-label" for="scenarioSlider">Growth year</label>
+        <div class="slicer-track">
+          <input type="range" id="scenarioSlider" min="0" max="${scenarios.length - 1}" step="1" list="scenarioStops">
+          <datalist id="scenarioStops">${scenarios.map((_, i) => `<option value="${i}"></option>`).join('')}</datalist>
+          <div class="slicer-ticks">${scenarios.map((s, i) =>
+            `<button type="button" data-index="${i}" title="${escapeAttr(s.label)}">${escapeAttr(scenarioLabelOf(s))}</button>`).join('')}</div>
+        </div>`;
+    }
+    const slider = wrap.querySelector('input');
+    slider.value = String(index);
+    slider.setAttribute('aria-valuetext', scenarios[index].label);
+    slider.style.setProperty('--fill', (scenarios.length > 1 ? index / (scenarios.length - 1) * 100 : 0) + '%');
+    wrap.querySelectorAll('.slicer-ticks button').forEach((b, i) => b.classList.toggle('active', i === index));
   }
 
-  $('scenarioTabs').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-scenario]');
-    if (!btn) return;
-    state.scenarioLabel = btn.dataset.scenario;
+  function selectScenario(index) {
+    const s = state.data.scenarios[index];
+    if (!s || s.label === state.scenarioLabel) return;
+    state.scenarioLabel = s.label;
     renderScenarioTabs();
     renderAll();
+  }
+
+  $('scenarioTabs').addEventListener('input', (e) => {
+    if (e.target.id === 'scenarioSlider') selectScenario(Number(e.target.value));
+  });
+  $('scenarioTabs').addEventListener('click', (e) => {
+    const tick = e.target.closest('.slicer-ticks button');
+    if (tick) selectScenario(Number(tick.dataset.index));
   });
 
   $('periodTabs').addEventListener('click', (e) => {

@@ -274,6 +274,7 @@
   .year-slicer { display: flex; align-items: center; gap: 10px; background: var(--surface-1); border-radius: 8px; padding: 6px 12px 4px; }
   .slicer-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
   .slicer-track { position: relative; width: 240px; }
+.slicer-select { font: inherit; font-size: 12px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border, #d0d7d0); background: var(--surface-0, #fff); color: var(--text-primary); max-width: 220px; }
   @media (max-width: 520px) { .slicer-track { width: 170px; } }
   .slicer-track input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; margin: 0; background: transparent; cursor: pointer; display: block; }
   .slicer-track input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px;
@@ -580,7 +581,9 @@
     oxygen: {
       label: 'Air generated (O₂)', unit: 'kg', color: PALETTE.oxygen,
       annual: (t) => (t.co2EquivalentAnnualKg ?? 0) * EQUIV.o2PerCo2MassRatio + (t.floorOxygenProducedAnnualKg ?? 0),
-      lifetime: (t) => (t.co2EquivalentLifetimeKg ?? 0) * EQUIV.o2PerCo2MassRatio + (t.floorOxygenProducedAnnualKg ?? 0),
+      // Floors export an annual oxygen figure only; adding one year of it to a lifetime tree
+      // total mixed annual and cumulative values, so lifetime oxygen is tree-sourced only.
+      lifetime: (t) => (t.co2EquivalentLifetimeKg ?? 0) * EQUIV.o2PerCo2MassRatio,
     },
     cost: {
       label: 'Cost saved', unit: 'money', color: PALETTE.cost,
@@ -649,8 +652,10 @@
     try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(n); }
     catch { return fixed(n, 0) + ' ' + (currency || ''); }
   }
+  // Escapes text from the exported file (scenario labels, species, LDS types, place names) for
+  // both attributes and element content — Revit names can contain "<"/">" (e.g. "Baseline <primary>").
   function escapeAttr(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   // ---------------- Theme ----------------
@@ -721,7 +726,8 @@
     // Default scenario: whichever design option Revit has flagged Primary, else the youngest
     // growth-year stage, else just the first one in the file.
     const scenarios = json.scenarios;
-    const defaultScenario = scenarios.find(s => s.isPrimary) || scenarios[0];
+    const isBaseline = (s) => /baseline/i.test(s.designOption ?? s.label ?? '');
+    const defaultScenario = scenarios.find(isBaseline) || scenarios.find(s => s.isPrimary) || scenarios[0];
     state.scenarioLabel = defaultScenario.label;
 
     uploadPanel.style.display = 'none';
@@ -733,23 +739,50 @@
     renderAll();
   }
 
-  // Scenario slicer: one stop per design option (growth year), in file order. Built once per
-  // loaded file; dragging/arrowing only moves the thumb and readout, so focus stays on the input.
+  // Scenario slicer. Schema v4 files from models with growth-year worksets AND design options tag
+  // each scenario with its designOption: the option is picked from a dropdown and the slider steps
+  // through that option's growth years. Older files (no designOption) are one timeline, one stop per
+  // scenario in file order. Built once per option; dragging/arrowing only moves the thumb and
+  // readout, so focus stays on the input.
   const scenarioLabelOf = (s) => s.years != null ? s.years + ' yr' : s.label;
+  const optionOf = (s) => s && s.designOption != null ? s.designOption : null;
+
+  function currentScenario() {
+    const all = state.data.scenarios;
+    return all.find(s => s.label === state.scenarioLabel) || all[0];
+  }
+
+  /** Design options in file order (empty for single-timeline files). */
+  function designOptions() {
+    return [...new Set(state.data.scenarios.map(optionOf).filter(o => o != null))];
+  }
+
+  /** The scenarios the slider and growth charts step through: the current design option's years. */
+  function timeline() {
+    const option = optionOf(currentScenario());
+    return option == null ? state.data.scenarios : state.data.scenarios.filter(s => optionOf(s) === option);
+  }
 
   function renderScenarioTabs() {
-    const scenarios = state.data.scenarios;
+    const scenarios = timeline();
+    const options = designOptions();
     const wrap = $('scenarioTabs');
-    if (scenarios.length <= 1) {
+    if (scenarios.length <= 1 && options.length <= 1) {
       wrap.style.display = 'none';
       return;
     }
     wrap.style.display = 'flex';
     const index = Math.max(0, scenarios.findIndex(s => s.label === state.scenarioLabel));
-    const key = scenarios.map(s => s.label).join('|');
+    const currentOption = optionOf(currentScenario());
+    const key = options.join('|') + '#' + scenarios.map(s => s.label).join('|');
     if (wrap.dataset.key !== key || !wrap.querySelector('input')) {
       wrap.dataset.key = key;
-      wrap.innerHTML = `
+      const optionPicker = options.length > 1
+        ? `<label class="slicer-label" for="designOptionSelect">Scenario</label>
+           <select id="designOptionSelect" class="slicer-select">${options.map(o =>
+             `<option value="${escapeAttr(o)}"${o === currentOption ? ' selected' : ''}>${escapeAttr(o)}</option>`).join('')}</select>`
+        : '';
+      wrap.innerHTML = optionPicker + `
         <label class="slicer-label" for="scenarioSlider">Growth year</label>
         <div class="slicer-track">
           <input type="range" id="scenarioSlider" min="0" max="${scenarios.length - 1}" step="1" list="scenarioStops">
@@ -766,15 +799,29 @@
   }
 
   function selectScenario(index) {
-    const s = state.data.scenarios[index];
+    const s = timeline()[index];
     if (!s || s.label === state.scenarioLabel) return;
     state.scenarioLabel = s.label;
     renderScenarioTabs();
     renderAll();
   }
 
+  /** Switching design option keeps the same growth year when that option has it. */
+  function selectDesignOption(option) {
+    const years = currentScenario().years;
+    const inOption = state.data.scenarios.filter(s => optionOf(s) === option);
+    const next = inOption.find(s => s.years === years) || inOption[0];
+    if (!next) return;
+    state.scenarioLabel = next.label;
+    renderScenarioTabs();
+    renderAll();
+  }
+
   $('scenarioTabs').addEventListener('input', (e) => {
     if (e.target.id === 'scenarioSlider') selectScenario(Number(e.target.value));
+  });
+  $('scenarioTabs').addEventListener('change', (e) => {
+    if (e.target.id === 'designOptionSelect') selectDesignOption(e.target.value);
   });
   $('scenarioTabs').addEventListener('click', (e) => {
     const tick = e.target.closest('.slicer-ticks button');
@@ -846,12 +893,13 @@
     const treeCost = isAnnual ? (t.treeCostSavedAnnual ?? 0) : (t.treeCostSavedLifetime ?? 0);
     const pollutantTotalKg = pollutants.totalKg ?? 0;
 
-    // Oxygen: tree-sourced (stoichiometric from CO2 uptake) + floor/green-roof measured production (annual-only source data).
-    const oxygenKg = co2Kg * EQUIV.o2PerCo2MassRatio + (t.floorOxygenProducedAnnualKg ?? 0);
+    // Oxygen: tree-sourced (stoichiometric from CO2 uptake), plus floor/green-roof measured
+    // production in the annual view only — floors have no lifetime figure to add.
+    const oxygenKg = co2Kg * EQUIV.o2PerCo2MassRatio + (isAnnual ? (t.floorOxygenProducedAnnualKg ?? 0) : 0);
 
     renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, treeCost, currency });
-    renderGrowthBarChart(scenarios, scenario.label, currency);
-    renderGrowthCurveChart(scenarios, scenario.label, currency);
+    renderGrowthBarChart(timeline(), scenario.label, currency);
+    renderGrowthCurveChart(timeline(), scenario.label, currency);
     renderLocation(d.project.location);
     renderCostDonut(isAnnual, t, currency);
     renderPollutantBars(pollutants);
@@ -919,7 +967,7 @@
     const host = $('growthBarHost');
     host.innerHTML = data.map((d) => `
       <div class="bar-row" data-scenario="${escapeAttr(d.key)}" style="cursor:pointer;${d.selected ? '' : 'opacity:.55;'}">
-        <div class="name" style="${d.selected ? 'color:var(--text-primary);font-weight:700;' : ''}">${d.xLabel}</div>
+        <div class="name" style="${d.selected ? 'color:var(--text-primary);font-weight:700;' : ''}">${escapeAttr(d.xLabel)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${(d.annual / max * 100).toFixed(1)}%;background:${metric.color}"></div></div>
         <div class="val">${formatMetricValue(metric, d.annual, currency)}</div>
       </div>`).join('');
@@ -992,7 +1040,7 @@
     const labels = data.map((d, i) => `
       <text x="${(marginLeft + stepX * i).toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
         fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
-        style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${d.xLabel}</text>`).join('');
+        style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${escapeAttr(d.xLabel)}</text>`).join('');
 
     const valueLabels = data.map((d, i) => {
       if (!d.selected) return '';
@@ -1214,7 +1262,7 @@
       return `<path class="region-shape${isMatch ? ' highlight' : ''}" d="${geometryToPath(f.geometry, project)}">${name ? `<title>${name}</title>` : ''}</path>`;
     }).join('');
     const [px, py] = project(loc.longitude, loc.latitude);
-    const pin = `<circle class="region-pin" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.5"><title>${loc.placeName || 'Project site'}</title></circle>`;
+    const pin = `<circle class="region-pin" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.5"><title>${escapeAttr(loc.placeName || 'Project site')}</title></circle>`;
     host.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">${shapes}${pin}</svg>`;
   }
 
@@ -1227,7 +1275,7 @@
 
     if (!hasLoc) {
       state.regionMapKey = null;
-      $('regionMapHost').innerHTML = regionStatusHtml('Location wasn’t set in Revit’s Site Location when this file was exported.', false);
+      $('regionMapHost').innerHTML = regionStatusHtml('No project location in this export — set one with Location Finder in Revit, then export again.', false);
       return;
     }
 
@@ -1278,7 +1326,7 @@
     $('donutLegend').innerHTML = segs.map(seg => {
       const frac = total > 0 ? (Math.max(0, seg.v) / total) * 100 : 0;
       return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
-        <span class="name">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+        <span class="name">${escapeAttr(seg.label)}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
     }).join('');
   }
 
@@ -1343,7 +1391,7 @@
     $('pollutantPieLegend').innerHTML = rows.map((seg) => {
       const frac = total > 0 ? (Math.max(0, seg.v) / total) * 100 : 0;
       return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
-        <span class="name">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+        <span class="name">${escapeAttr(seg.label)}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
     }).join('');
   }
 
@@ -1379,7 +1427,7 @@
     const max = Math.max(1e-9, ...top.map(r => r.carbon));
     $('speciesBars').innerHTML = top.map((r) => `
       <div class="bar-row">
-        <div class="name" title="${r.name}"><span class="species-dot" style="background:${r.color}"></span>${r.name}</div>
+        <div class="name" title="${escapeAttr(r.name)}"><span class="species-dot" style="background:${r.color}"></span>${escapeAttr(r.name)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${(r.carbon / max * 100).toFixed(1)}%;background:${r.color}"></div></div>
         <div class="val">${fixed(r.carbon, 0)} kg</div>
       </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">No species data in this export.</p>';
@@ -1388,7 +1436,7 @@
     table.innerHTML = `
       <thead><tr><th>Species</th><th class="num">Trees</th><th class="num">Carbon (kg)</th>
         <th class="num">Pollutants (kg)</th><th class="num">Cost saved</th></tr></thead>
-      <tbody>${rows.map((r) => `<tr><td><span class="species-dot" style="background:${r.color}"></span>${r.name}</td><td class="num">${fixed(r.trees, 0)}</td>
+      <tbody>${rows.map((r) => `<tr><td><span class="species-dot" style="background:${r.color}"></span>${escapeAttr(r.name)}</td><td class="num">${fixed(r.trees, 0)}</td>
         <td class="num">${fixed(r.carbon, 1)}</td><td class="num">${fixed(r.pollution, 2)}</td>
         <td class="num">${money(r.cost, currency)}</td></tr>`).join('')}</tbody>`;
 
@@ -1438,7 +1486,7 @@
     $('speciesPieLegend').innerHTML = segs.map((seg) => {
       const frac = total > 0 ? (seg.v / total) * 100 : 0;
       return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
-        <span class="name" title="${escapeAttr(seg.label)}">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+        <span class="name" title="${escapeAttr(seg.label)}">${escapeAttr(seg.label)}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
     }).join('');
   }
 
@@ -1536,6 +1584,7 @@
     const tiles = [
       { l: 'Distinct species', v: fixed(k.distinctSpeciesCount ?? 0, 0) },
       { l: 'Bloom months covered', v: fixed(k.distinctBloomMonthsCount ?? 0, 0) + ' / 12' },
+      { l: 'Habitat connectivity', v: k.habitatConnectivityScore == null ? 'Not entered' : fixed(k.habitatConnectivityScore, 1) },
     ];
     $('siteKpiStrip').innerHTML = tiles.map(t => `
       <div class="stat-tile"><div class="v">${t.v}</div><div class="l">${t.l}</div></div>`).join('');
@@ -1568,7 +1617,7 @@
       const len = Math.max(0, frac * circumference - gap);
       parts += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${thickness}"
         stroke-dasharray="${len} ${circumference - len}" stroke-dashoffset="${-offset}" stroke-linecap="round"
-        data-tip="${seg.label}: ${fixed(seg.v, 0)} trees (${(frac * 100).toFixed(0)}%)" class="donut-seg"/>`;
+        data-tip="${escapeAttr(seg.label)}: ${fixed(seg.v, 0)} trees (${(frac * 100).toFixed(0)}%)" class="donut-seg"/>`;
       offset += frac * circumference;
     });
     svg.innerHTML = parts +
@@ -1583,7 +1632,7 @@
     $('speciesDonutLegend').innerHTML = segs.map((seg) => {
       const frac = total > 0 ? (seg.v / total) * 100 : 0;
       return `<div class="row"><span class="swatch" style="background:${seg.color}"></span>
-        <span class="name">${seg.label}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
+        <span class="name">${escapeAttr(seg.label)}</span><span class="pct">${frac.toFixed(0)}%</span></div>`;
     }).join('');
   }
 
@@ -1682,7 +1731,7 @@
       <thead><tr><th>LDS type</th><th class="num">Floors</th><th class="num">Area (m²)</th>
         <th class="num">Carbon (kg/yr)</th><th class="num">Run-off avoided (m³/yr)</th>
         <th class="num">O₂ produced (kg/yr)</th><th class="num">Cost saved</th></tr></thead>
-      <tbody>${floors.map(f => `<tr><td>${f.ldsType}</td><td class="num">${fixed(f.floorCount, 0)}</td>
+      <tbody>${floors.map(f => `<tr><td>${escapeAttr(f.ldsType)}</td><td class="num">${fixed(f.floorCount, 0)}</td>
         <td class="num">${fixed(f.areaSquareMeters, 1)}</td><td class="num">${fixed(f.carbonSequesteredAnnualKg, 1)}</td>
         <td class="num">${fixed(f.runoffAvoidedAnnualM3, 1)}</td><td class="num">${fixed(f.oxygenProducedAnnualKg, 1)}</td>
         <td class="num">${fixed(f.costSavedAnnual, 0)} (as calculated)</td></tr>`).join('')}</tbody>`;

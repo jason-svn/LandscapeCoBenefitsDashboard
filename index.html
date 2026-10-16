@@ -571,7 +571,7 @@
     <footer class="methodology">
       <strong>Growth years:</strong> each stop on the Growth year slider models the same planted layout at a
       different tree age — 0 yr is the trees as planted (Growth Projections' Baseline workset), and each later
-      year (5/10/15/20/25 by default, or custom years — this page shows them up to 40) is its own growth-year workset (older models
+      year (5/10/15/20/25 by default, or custom years up to 40) is its own growth-year workset (older models
       used one design option per year). They're snapshots of one site in time, not alternatives to add
       together, so figures are shown for one selected year at a time rather than summed — a "25 years" total
       blended with a "5 years" total would be meaningless. A tree stops growing once it reaches its type's
@@ -816,8 +816,8 @@
   // scenario. Growth years run 0 (as planted) to 100, so a timeline can hold custom years beyond
   // 5/10/15/20/25. Built once per option; dragging/arrowing only moves the thumb and readout, so
   // focus stays on the input.
-  // The growth timeline stops at 40 years: later years in an export (Growth Projections allows up to
-  // 100) are left off the slider and growth charts — by then trees are long since at full size.
+  // The growth timeline stops at 40 years, Growth Projections' own limit: later years in an export
+  // (older versions allowed up to 100) are left off the slider and growth charts.
   const MAX_TIMELINE_YEAR = 40;
   const scenarioLabelOf = (s) => s.years != null ? s.years + ' yr' : s.label;
   const scenarioTitleOf = (s) => s.years === 0 ? s.label + ' — as planted' : s.label;

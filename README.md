@@ -127,9 +127,10 @@ a "25 years" figure added to a "5 years" figure for the same trees would be
 meaningless. Growth years come from tree worksets named with a year count:
 Growth Projections moves the original trees onto `LIM_Growth_0yr - Baseline`
 (year 0, as planted) and copies them onto `LIM_Growth_<N>yr` for each year
-asked for — 5/10/15/20/25 by default, any whole year up to 100. This page's
-timeline (slider and growth charts) stops at 40 years; later years in an
-export are left out, and the growth-curves subtitle says how many. A tree stops
+asked for — 5/10/15/20/25 by default, any whole year up to 40. This page's
+timeline (slider and growth charts) stops at 40 years too; later years in an
+export (older versions allowed up to 100) are left out, and the
+growth-curves subtitle says how many. A tree stops
 growing once it reaches its type's mature size — the LDS max height/width
 (`!_S_PLT_LDS_MaxHeight_Length` / `MaxWidth_Length`, downloaded from
 Airtable's `Max_Height` / `Max_Width`) — or 25 years after planting without

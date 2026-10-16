@@ -571,7 +571,7 @@
     <footer class="methodology">
       <strong>Growth years:</strong> each stop on the Growth year slider models the same planted layout at a
       different tree age — 0 yr is the trees as planted (Growth Projections' Baseline workset), and each later
-      year (5/10/15/20/25 by default, or any custom year up to 100) is its own growth-year workset (older models
+      year (5/10/15/20/25 by default, or custom years — this page shows them up to 40) is its own growth-year workset (older models
       used one design option per year). They're snapshots of one site in time, not alternatives to add
       together, so figures are shown for one selected year at a time rather than summed — a "25 years" total
       blended with a "5 years" total would be meaningless. A tree stops growing once it reaches its type's
@@ -799,6 +799,7 @@
     const isBaseline = (s) => /baseline/i.test(s.designOption ?? s.label ?? '');
     const defaultScenario = scenarios.find(isBaseline) || scenarios.find(s => s.isPrimary) || scenarios[0];
     state.scenarioLabel = defaultScenario.label;
+    if (!timeline().includes(defaultScenario)) state.scenarioLabel = timeline()[0].label; // past the timeline's last year
 
     uploadPanel.style.display = 'none';
     $('dashboard').style.display = 'block';
@@ -815,6 +816,9 @@
   // scenario. Growth years run 0 (as planted) to 100, so a timeline can hold custom years beyond
   // 5/10/15/20/25. Built once per option; dragging/arrowing only moves the thumb and readout, so
   // focus stays on the input.
+  // The growth timeline stops at 40 years: later years in an export (Growth Projections allows up to
+  // 100) are left off the slider and growth charts — by then trees are long since at full size.
+  const MAX_TIMELINE_YEAR = 40;
   const scenarioLabelOf = (s) => s.years != null ? s.years + ' yr' : s.label;
   const scenarioTitleOf = (s) => s.years === 0 ? s.label + ' — as planted' : s.label;
   const optionOf = (s) => s && s.designOption != null ? s.designOption : null;
@@ -829,11 +833,26 @@
     return [...new Set(state.data.scenarios.map(optionOf).filter(o => o != null))];
   }
 
-  /** The scenarios the slider and growth charts step through: the current design option's years, youngest first when every one has a year. */
+  /** Every scenario of a design option (null: the whole file, for single-timeline exports). */
+  function scenariosOf(option) {
+    return option == null ? state.data.scenarios : state.data.scenarios.filter(s => optionOf(s) === option);
+  }
+
+  /**
+   * The growth years an option's slider and growth charts step through: youngest first, and only up
+   * to MAX_TIMELINE_YEAR, when every one has a year (all of them if none falls in range); otherwise
+   * every scenario in file order.
+   */
+  function stepsFor(option) {
+    const steps = scenariosOf(option);
+    if (!steps.every(s => s.years != null)) return steps;
+    const inRange = steps.filter(s => s.years <= MAX_TIMELINE_YEAR);
+    return [...(inRange.length ? inRange : steps)].sort((a, b) => a.years - b.years);
+  }
+
+  /** The current design option's timeline. */
   function timeline() {
-    const option = optionOf(currentScenario());
-    const steps = option == null ? state.data.scenarios : state.data.scenarios.filter(s => optionOf(s) === option);
-    return steps.every(s => s.years != null) ? [...steps].sort((a, b) => a.years - b.years) : steps;
+    return stepsFor(optionOf(currentScenario()));
   }
 
   function renderScenarioTabs() {
@@ -929,7 +948,7 @@
   /** Switching design option keeps the same growth year when that option has it. */
   function selectDesignOption(option) {
     const years = currentScenario().years;
-    const inOption = state.data.scenarios.filter(s => optionOf(s) === option);
+    const inOption = stepsFor(option);
     const next = inOption.find(s => s.years === years) || inOption[0];
     if (!next) return;
     state.scenarioLabel = next.label;
@@ -1213,8 +1232,10 @@
       ? (s.years - scenarios[0].years) / (scenarios[n - 1].years - scenarios[0].years)
       : i / (n - 1)));
     const yFor = (p) => marginTop + plotH - p / 100 * plotH;
+    const hidden = scenariosOf(optionOf(scenarios[0])).length - n;
     $('growthCurveSub').textContent = 'Each benefit as a % of its own peak, so all five share one scale' +
-      (byYear ? ' · years to scale' : '') + ' — hover for values, click a year to view it';
+      (byYear ? ' · years to scale' : '') + (hidden > 0 ? ` (to ${MAX_TIMELINE_YEAR} yr; ${hidden} later year${hidden > 1 ? 's' : ''} in this export not shown)` : '') +
+      ' — hover for values, click a year to view it';
 
     // From the year every tree is at full size the figures stop changing: shade that stretch.
     const band = plateau == null ? '' : `

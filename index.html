@@ -238,6 +238,8 @@
   .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
   .stat-tile .v { font-size: 19px; font-weight: 700; }
   .stat-tile .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .stat-strip.three { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 520px) { .stat-strip.three { grid-template-columns: 1fr; } }
 
   /* Site & biodiversity: ratio meters + a species-composition donut, both feeding off the same panel */
   .site-bio-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: center; margin-bottom: 16px; }
@@ -249,15 +251,15 @@
   .meter-row .val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   .bng-bars .bar-row { grid-template-columns: minmax(120px, 190px) 1fr 84px; }
   @media (max-width: 520px) { .bng-bars .bar-row { grid-template-columns: 110px 1fr 70px; } }
-  .bng-headline { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  .bng-headline .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .bng-headline, .carbon-headline { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .bng-headline .big, .carbon-headline .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
   .bng-headline .big.gain { color: var(--brand-700); }
   .bng-headline .big.short { color: var(--gold-ink); }
   .bng-headline .big.loss { color: var(--cat-3); }
-  .bng-headline .what { color: var(--text-secondary); font-size: 13px; }
+  .bng-headline .what, .carbon-headline .what { color: var(--text-secondary); font-size: 13px; }
   .bng-badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--brand-wash-strong); color: var(--brand-700); }
   .bng-badge.short { background: rgba(232,185,62,0.20); color: var(--gold-ink); }
-  .bng-badge.provisional { background: var(--surface-1); color: var(--text-muted); border: 1px solid var(--border); }
+  .bng-badge.provisional, .bng-badge.neutral { background: var(--surface-1); color: var(--text-muted); border: 1px solid var(--border); }
   .bng-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   @media (max-width: 760px) { .bng-cols { grid-template-columns: 1fr; } }
   .bng-sub-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 2px; }
@@ -285,12 +287,22 @@
     background: var(--surface-2); border: 2px solid var(--brand-700); box-shadow: 0 1px 2px var(--border); }
   .slicer-track input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--brand-700); }
   .slicer-track input[type=range]:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 3px; border-radius: 4px; }
-  /* Tick labels sit under each stop: the first/last align to the track ends, the rest centre on their stop */
-  .slicer-ticks { display: flex; justify-content: space-between; margin: 0 -2px; }
-  .slicer-ticks button { border: none; background: transparent; font: inherit; font-size: 11px; font-weight: 600; color: var(--text-muted);
-    padding: 1px 2px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  /* Tick labels sit under each stop (--at is the stop's 0-1 position along the thumb's travel, which
+     is inset by the 8px thumb radius): the first/last align to the track ends, the rest centre on
+     their stop. A label that would collide with a neighbour shrinks to a dot (still clickable), and
+     the readout then names the selected year. */
+  .slicer-ticks { position: relative; height: 17px; }
+  .slicer-ticks button { position: absolute; top: 0; left: calc(8px + (100% - 16px) * var(--at, 0)); transform: translateX(-50%);
+    border: none; background: transparent; font: inherit; font-size: 11px; font-weight: 600; color: var(--text-muted);
+    padding: 1px 2px; cursor: pointer; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .slicer-ticks button.first { left: 0; transform: none; }
+  .slicer-ticks button.last { left: 100%; transform: translateX(-100%); }
   .slicer-ticks button:hover { color: var(--text-secondary); }
   .slicer-ticks button.active { color: var(--brand-700); }
+  .slicer-ticks button.minor { font-size: 0; width: 10px; height: 15px; padding: 0; }
+  .slicer-ticks button.minor::before { content: ""; display: block; width: 3px; height: 3px; margin: 5px auto 0; border-radius: 50%; background: currentColor; }
+  .slicer-ticks button.minor.covered::before { display: none; }
+  .slicer-readout { font-size: 12px; font-weight: 700; color: var(--brand-700); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .toggle-tabs { display: flex; gap: 4px; background: var(--surface-1); border-radius: 8px; padding: 3px; }
   .toggle-tabs button { border: none; background: transparent; font: inherit; font-size: 12px; font-weight: 600;
     padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); }
@@ -478,11 +490,23 @@
       </div>
     </div>
 
+    <div class="panel" id="carbonPanel" style="margin-bottom:14px;">
+      <div class="panel-head">
+        <div>
+          <h3>Embodied carbon &amp; payback</h3>
+          <div class="panel-sub">One-off GWP of the planting areas' materials (product + transport — paving, stone, etc.) against the planting's yearly CO₂e uptake</div>
+        </div>
+      </div>
+      <div class="carbon-headline" id="carbonHeadline"></div>
+      <div class="stat-strip three" id="carbonStrip"></div>
+      <div class="hint" id="carbonNote" style="font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
+    </div>
+
     <div class="panel">
       <div class="panel-head">
         <div>
           <h3>Planted floor / softscape types</h3>
-          <div class="panel-sub">Annual figures — floor cost has no reliable currency provenance, so it's shown "as calculated"</div>
+          <div class="panel-sub">Annual figures (embodied carbon is one-off) — floor cost has no reliable currency provenance, so it's shown "as calculated"</div>
         </div>
       </div>
       <div class="table-scroll">
@@ -496,7 +520,7 @@
       <div class="panel-head">
         <div>
           <h3 id="growthBarTitle">Growth over time</h3>
-          <div class="panel-sub" id="growthBarSub">Annual, by design-option growth stage — click a translation card above to change the metric, click a stage to view it there</div>
+          <div class="panel-sub" id="growthBarSub">Annual, by growth year — click a translation card above to change the metric, click a year to view it there</div>
         </div>
       </div>
       <div class="growth-chart-wrap">
@@ -508,7 +532,7 @@
       <div class="panel-head">
         <div>
           <h3 id="growthCurveTitle">Growth curve</h3>
-          <div class="panel-sub" id="growthCurveSub">Lifetime cumulative, traced across growth stages</div>
+          <div class="panel-sub" id="growthCurveSub">Lifetime cumulative, traced across growth years</div>
         </div>
       </div>
       <div class="growth-chart-wrap">
@@ -517,10 +541,21 @@
     </div>
 
     <footer class="methodology">
-      <strong>Growth-year design options:</strong> each tab above (e.g. 5/10/15/20/25 yr) is a separate
-      Revit design option modeling the same planted layout at a different tree age, not an alternative
-      to add together — figures are shown for one selected stage at a time rather than summed across
-      every option, since a "25 years" total blended with a "5 years" total would be meaningless.
+      <strong>Growth years:</strong> each stop on the Growth year slider models the same planted layout at a
+      different tree age — 0 yr is the trees as planted (Growth Projections' Baseline workset), and each later
+      year (5/10/15/20/25 by default, or any custom year up to 100) is its own growth-year workset (older models
+      used one design option per year). They're snapshots of one site in time, not alternatives to add
+      together, so figures are shown for one selected year at a time rather than summed — a "25 years" total
+      blended with a "5 years" total would be meaningless. A tree stops growing once it reaches its type's
+      mature size (or 25 years after planting when no mature size is known), so later years can level off.
+      When the model also has real design options, the Scenario dropdown picks one and the slider steps
+      through that option's years.
+      <br><br>
+      <strong>Embodied carbon:</strong> the planting areas' one-off GWP — the product + transport stages of
+      their materials from the landscape data sheet, as Floor Calculator records it. Vegetation's negative
+      sheet "GWP" is its yearly sequestration, so it never counts as embodied carbon. Payback = embodied carbon
+      ÷ the selected growth year's yearly CO₂e uptake (trees' CO₂ equivalent plus floors' sequestered carbon
+      × 3.67), the same figure the Dashboard app shows.
       <br><br>
       <strong>How the "equivalent to" figures are calculated:</strong>
       water → baths at 150 L/bath; CO₂ → miles driven at 0.404 kg CO₂/mile (EPA Greenhouse Gas Equivalencies Calculator,
@@ -550,6 +585,9 @@
     mgPmPerCigaretteEquivalent: 5, // illustrative — adjust to your organization's cited source
     costPerCoffeeCup: 3,           // illustrative local price point, in the export's currency
   };
+
+  // Floors export elemental carbon; ×3.67 turns it into CO2, as the app's UnitConversions does.
+  const CARBON_TO_CO2_MASS_RATIO = 3.67;
 
   // Mostly-green family, not a categorical rainbow — each metric gets its own step of the brand
   // green ramp (Cost Saved is the one deliberate exception, gold, echoing the app's own hero-total
@@ -742,9 +780,11 @@
   // Scenario slicer. Schema v4 files from models with growth-year worksets AND design options tag
   // each scenario with its designOption: the option is picked from a dropdown and the slider steps
   // through that option's growth years. Older files (no designOption) are one timeline, one stop per
-  // scenario in file order. Built once per option; dragging/arrowing only moves the thumb and
-  // readout, so focus stays on the input.
+  // scenario. Growth years run 0 (as planted) to 100, so a timeline can hold custom years beyond
+  // 5/10/15/20/25. Built once per option; dragging/arrowing only moves the thumb and readout, so
+  // focus stays on the input.
   const scenarioLabelOf = (s) => s.years != null ? s.years + ' yr' : s.label;
+  const scenarioTitleOf = (s) => s.years === 0 ? s.label + ' — as planted' : s.label;
   const optionOf = (s) => s && s.designOption != null ? s.designOption : null;
 
   function currentScenario() {
@@ -757,10 +797,11 @@
     return [...new Set(state.data.scenarios.map(optionOf).filter(o => o != null))];
   }
 
-  /** The scenarios the slider and growth charts step through: the current design option's years. */
+  /** The scenarios the slider and growth charts step through: the current design option's years, youngest first when every one has a year. */
   function timeline() {
     const option = optionOf(currentScenario());
-    return option == null ? state.data.scenarios : state.data.scenarios.filter(s => optionOf(s) === option);
+    const steps = option == null ? state.data.scenarios : state.data.scenarios.filter(s => optionOf(s) === option);
+    return steps.every(s => s.years != null) ? [...steps].sort((a, b) => a.years - b.years) : steps;
   }
 
   function renderScenarioTabs() {
@@ -782,21 +823,59 @@
            <select id="designOptionSelect" class="slicer-select">${options.map(o =>
              `<option value="${escapeAttr(o)}"${o === currentOption ? ' selected' : ''}>${escapeAttr(o)}</option>`).join('')}</select>`
         : '';
+      // Past five stops (e.g. 0 + 5/10/15/20/25, or custom years) only the last tick spells out "yr".
+      const last = scenarios.length - 1;
+      const tickText = (s, i) => s.years != null && scenarios.length > 5 && i < last ? String(s.years) : scenarioLabelOf(s);
       wrap.innerHTML = optionPicker + `
         <label class="slicer-label" for="scenarioSlider">Growth year</label>
+        <span class="slicer-readout" hidden></span>
         <div class="slicer-track">
-          <input type="range" id="scenarioSlider" min="0" max="${scenarios.length - 1}" step="1" list="scenarioStops">
+          <input type="range" id="scenarioSlider" min="0" max="${last}" step="1" list="scenarioStops">
           <datalist id="scenarioStops">${scenarios.map((_, i) => `<option value="${i}"></option>`).join('')}</datalist>
           <div class="slicer-ticks">${scenarios.map((s, i) =>
-            `<button type="button" data-index="${i}" title="${escapeAttr(s.label)}">${escapeAttr(scenarioLabelOf(s))}</button>`).join('')}</div>
+            `<button type="button" class="${i === 0 ? 'first' : i === last ? 'last' : ''}" data-index="${i}" style="--at:${last > 0 ? i / last : 0}"
+              title="${escapeAttr(scenarioTitleOf(s))}" aria-label="${escapeAttr(scenarioTitleOf(s))}">${escapeAttr(tickText(s, i))}</button>`).join('')}</div>
         </div>`;
     }
     const slider = wrap.querySelector('input');
     slider.value = String(index);
-    slider.setAttribute('aria-valuetext', scenarios[index].label);
+    slider.setAttribute('aria-valuetext', scenarioTitleOf(scenarios[index]));
     slider.style.setProperty('--fill', (scenarios.length > 1 ? index / (scenarios.length - 1) * 100 : 0) + '%');
     wrap.querySelectorAll('.slicer-ticks button').forEach((b, i) => b.classList.toggle('active', i === index));
+    wrap.querySelector('.slicer-readout').textContent = scenarioLabelOf(scenarios[index]);
+    layoutSlicerTicks(wrap);
   }
+
+  // Ticks whose label would overlap a neighbour's shrink to a dot: the first and last always keep
+  // theirs, the rest are kept left to right while they clear the previous kept label and the last
+  // one. A dot that lands under a kept label (e.g. beside the right-aligned last one) is hidden.
+  // Measured from the rendered labels, so it holds for any year count, label or track width.
+  function layoutSlicerTicks(wrap) {
+    const ticks = [...wrap.querySelectorAll('.slicer-ticks button')];
+    if (!ticks.length) return;
+    ticks.forEach(b => b.classList.remove('minor', 'covered'));
+    const spans = ticks.map(b => b.getBoundingClientRect());
+    const gap = 4, last = ticks.length - 1;
+    const kept = [spans[0], spans[last]];
+    let right = spans[0].right;
+    for (let i = 1; i < last; i++) {
+      if (spans[i].left >= right + gap && spans[i].right + gap <= spans[last].left) {
+        right = spans[i].right;
+        kept.push(spans[i]);
+      } else {
+        ticks[i].classList.add('minor');
+      }
+    }
+    ticks.forEach((b) => {
+      if (!b.classList.contains('minor')) return;
+      const box = b.getBoundingClientRect(), dot = (box.left + box.right) / 2; // the 3px dot is centred in its button
+      if (kept.some(k => dot > k.left - 3 && dot < k.right + 3)) b.classList.add('covered');
+    });
+    wrap.querySelector('.slicer-readout').hidden = !ticks.some(b => b.classList.contains('minor'));
+  }
+  window.addEventListener('resize', () => {
+    if (state.data && $('scenarioTabs').style.display !== 'none') layoutSlicerTicks($('scenarioTabs'));
+  });
 
   function selectScenario(index) {
     const s = timeline()[index];
@@ -880,7 +959,7 @@
     const t = scenario.totals || {};
     const currency = d.project.currency || 'USD';
 
-    const scenarioNote = scenarios.length > 1 ? ' · ' + scenario.label : '';
+    const scenarioNote = scenarios.length > 1 ? ' · ' + scenarioTitleOf(scenario) : '';
     $('headerSub').textContent =
       (d.project.title || 'Untitled project') + ' · ' + (isAnnual ? 'Annual' : 'Lifetime') + ' benefits · ' + currency + scenarioNote;
     $('genTime').textContent = d.project.generatedAt
@@ -897,9 +976,11 @@
     // production in the annual view only — floors have no lifetime figure to add.
     const oxygenKg = co2Kg * EQUIV.o2PerCo2MassRatio + (isAnnual ? (t.floorOxygenProducedAnnualKg ?? 0) : 0);
 
+    const steps = timeline();
     renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, treeCost, currency });
-    renderGrowthBarChart(timeline(), scenario.label, currency);
-    renderGrowthCurveChart(timeline(), scenario.label, currency);
+    renderGrowthBarChart(steps, scenario.label, currency);
+    renderGrowthCurveChart(steps, scenario.label, currency);
+    renderCarbonPayback(t, scenario, steps.length > 1, scenario.floorTypes || []);
     renderLocation(d.project.location);
     renderCostDonut(isAnnual, t, currency);
     renderPollutantBars(pollutants);
@@ -909,9 +990,9 @@
     renderFloorTable(scenario.floorTypes || []);
   }
 
-  // ---------------- Growth-over-time (design-option scenarios) ----------------
-  // Design options here model the same planted layout at different tree ages (5/10/15/20/25 years,
-  // in this project's case) — genuinely different points in time for one site, not independent
+  // ---------------- Growth-over-time (growth-year scenarios) ----------------
+  // Growth years model the same planted layout at different tree ages (0 = as planted, then
+  // 5/10/15/20/25 or custom years) — genuinely different points in time for one site, not independent
   // alternatives to sum. Two separate charts, not one combined chart: a horizontal bar chart for
   // comparing each stage's Annual rate, and a line chart for the Lifetime cumulative trend shape
   // across stages — Annual and Lifetime aren't drawn together because they're different bases (a
@@ -922,7 +1003,8 @@
     const metric = METRICS[metricKey];
     return scenarios.map(s => ({
       key: s.label,
-      xLabel: s.years != null ? (s.years + ' yr') : s.label,
+      years: s.years,
+      xLabel: scenarioLabelOf(s),
       annual: metric.annual(s.totals || {}),
       lifetime: metric.lifetime(s.totals || {}),
       selected: s.label === selectedLabel,
@@ -982,18 +1064,28 @@
   }
 
   // ---- Chart 2: line/curve chart (Lifetime cumulative trend shape across stages) ----
+  // Monotone cubic (Fritsch–Butland tangents) through points with strictly increasing x: smooth, but
+  // never overshooting between stages, so a cumulative total never appears to dip — Catmull-Rom
+  // would loop back on itself once growth years are unevenly spaced (e.g. 0, 5, 10, 50, 100).
   function smoothPath(points) {
-    if (points.length < 2) return '';
-    if (points.length === 2) return `M ${points[0][0]} ${points[0][1]} L ${points[1][0]} ${points[1][1]}`;
-    let d = `M ${points[0][0]} ${points[0][1]} `;
-    for (let i = 0; i < points.length - 1; i++) {
-      const p0 = points[i === 0 ? i : i - 1];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
-      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
-      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
-      d += `C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2[0]} ${p2[1]} `;
+    const n = points.length;
+    if (n < 2) return '';
+    const dx = [], slope = [];
+    for (let i = 0; i < n - 1; i++) {
+      dx.push(points[i + 1][0] - points[i][0]);
+      slope.push((points[i + 1][1] - points[i][1]) / dx[i]);
+    }
+    const tangent = points.map((_, i) => {
+      if (i === 0) return slope[0];
+      if (i === n - 1) return slope[n - 2];
+      if (slope[i - 1] * slope[i] <= 0) return 0;
+      const w1 = 2 * dx[i] + dx[i - 1], w2 = dx[i] + 2 * dx[i - 1];
+      return (w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i]);
+    });
+    let d = `M ${points[0][0]} ${points[0][1]}`;
+    for (let i = 0; i < n - 1; i++) {
+      const [x0, y0] = points[i], [x1, y1] = points[i + 1], h = dx[i] / 3;
+      d += ` C ${x0 + h} ${y0 + tangent[i] * h}, ${x1 - h} ${y1 - tangent[i + 1] * h}, ${x1} ${y1}`;
     }
     return d;
   }
@@ -1019,28 +1111,49 @@
     const plotW = width - marginLeft - marginRight;
     const plotH = height - marginTop - marginBottom;
     const n = data.length;
-    const stepX = n > 1 ? plotW / (n - 1) : 0;
+
+    // Growth years needn't be evenly spaced (0, 5, 10, 25, 50, ...), so when every stage has its own
+    // year, x is to scale in years; otherwise stages are spaced evenly in order.
+    const byYear = data.every((d, i) => d.years != null && (i === 0 || d.years > data[i - 1].years));
+    const xs = data.map((d, i) => marginLeft + plotW * (byYear
+      ? (d.years - data[0].years) / (data[n - 1].years - data[0].years)
+      : i / (n - 1)));
+    $('growthCurveSub').textContent = 'Lifetime cumulative, traced across growth years' + (byYear ? ' (spaced to scale)' : '');
 
     const maxV = Math.max(1e-9, ...data.map((d) => d.lifetime));
     const yFor = (v) => marginTop + plotH - (v / maxV) * plotH;
-    const points = data.map((d, i) => [marginLeft + stepX * i, yFor(d.lifetime)]);
+    const points = data.map((d, i) => [xs[i], yFor(d.lifetime)]);
 
     const dots = points.map(([px, py], i) => {
       const d = data[i];
       return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${d.selected ? 5 : 4}" fill="${metric.color}" stroke="var(--surface-2)" stroke-width="2"/>`;
     }).join('');
 
+    // Each stage's hover/click band runs to the midpoints with its neighbours.
     const hitAreas = data.map((d, i) => {
-      const cx = marginLeft + stepX * i;
+      const left = i === 0 ? 0 : (xs[i - 1] + xs[i]) / 2;
+      const right = i === n - 1 ? width : (xs[i] + xs[i + 1]) / 2;
       const tip = `${escapeAttr(d.xLabel)} — Lifetime: ${escapeAttr(formatMetricValue(metric, d.lifetime, currency))}`;
       return `<rect class="growth-hit" data-scenario="${escapeAttr(d.key)}" data-tip="${tip}"
-        x="${(cx - (stepX || plotW) / 2).toFixed(1)}" y="${marginTop}" width="${(stepX || plotW).toFixed(1)}" height="${plotH}" fill="transparent" style="cursor:pointer;"/>`;
+        x="${left.toFixed(1)}" y="${marginTop}" width="${(right - left).toFixed(1)}" height="${plotH}" fill="transparent" style="cursor:pointer;"/>`;
     }).join('');
 
-    const labels = data.map((d, i) => `
-      <text x="${(marginLeft + stepX * i).toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
+    // Axis labels that would overlap one already placed are left off (the dot and its tooltip stay).
+    // Placed in priority order: the selected stage, then the first and last, then left to right.
+    const labelHalfWidth = (text) => (text.length * 7 + 6) / 2; // ~12px system-ui, in viewBox units
+    const priority = (i) => data[i].selected ? -3 : i === 0 ? -2 : i === n - 1 ? -1 : i;
+    const placed = [];
+    [...data.keys()].sort((a, b) => priority(a) - priority(b)).forEach((i) => {
+      const half = labelHalfWidth(data[i].xLabel);
+      if (placed.every(([l, r]) => xs[i] + half + 6 <= l || xs[i] - half - 6 >= r)) placed.push([xs[i] - half, xs[i] + half, i]);
+    });
+    const labels = placed.map(([, , i]) => {
+      const d = data[i];
+      return `
+      <text x="${xs[i].toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
         fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
-        style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${escapeAttr(d.xLabel)}</text>`).join('');
+        style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${escapeAttr(d.xLabel)}</text>`;
+    }).join('');
 
     const valueLabels = data.map((d, i) => {
       if (!d.selected) return '';
@@ -1720,6 +1833,46 @@
       (b.metricVersion ? ' ' + b.metricVersion + '.' : '');
   }
 
+  // ---------------- Embodied carbon & payback ----------------
+  // As in the Dashboard app: embodied carbon is the planting areas' one-off product + transport GWP,
+  // and payback is the years of the scheme's yearly CO2e uptake — trees' CO2 equivalent plus floors'
+  // elemental carbon × 3.67 — needed to offset it. It's never negative: a negative stored GWP is
+  // sequestration from an older Floor Calculator run, counted as uptake already. The app clamps each
+  // floor at 0; summing the floor-type rows (which cover every floor, and whose sign follows the LDS
+  // type) clamped at 0 gives the same total for current exports and recovers it for older ones.
+  function renderCarbonPayback(t, scenario, hasTimeline, floors) {
+    const embodied = floors.length
+      ? floors.reduce((sum, f) => sum + Math.max(0, f.totalGwp ?? 0), 0)
+      : Math.max(0, t.floorTotalGwp ?? 0);
+    const treeUptake = t.co2EquivalentAnnualKg ?? 0;
+    const floorUptake = (t.floorCarbonSequesteredAnnualKg ?? 0) * CARBON_TO_CO2_MASS_RATIO;
+    const uptake = treeUptake + floorUptake;
+
+    const yearBadge = hasTimeline
+      ? `<span class="bng-badge neutral">At ${scenario.years === 0 ? 'as-planted' : escapeAttr(scenarioLabelOf(scenario))} uptake</span>`
+      : '';
+    const oneDecimal = (n) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+    $('carbonHeadline').innerHTML = embodied <= 0
+      ? '<span class="big">—</span><span class="what">No embodied carbon recorded for the planting areas in this export.</span>'
+      : uptake <= 0
+        ? '<span class="big">—</span><span class="what">No sequestration yet to offset the planting areas\' embodied carbon.</span>'
+        : `<span class="big">≈ ${oneDecimal(embodied / uptake)} yrs</span>
+           <span class="what">carbon payback — years of the planting's yearly CO₂e uptake to offset its embodied carbon</span>${yearBadge}`;
+
+    const tiles = [
+      { l: 'Embodied carbon (one-off)', v: fixed(embodied, 0) + ' kg CO₂e' },
+      { l: 'Tree uptake', v: fixed(treeUptake, 0) + ' kg CO₂e/yr' },
+      { l: 'Floor / softscape uptake', v: fixed(floorUptake, 0) + ' kg CO₂e/yr' },
+    ];
+    $('carbonStrip').innerHTML = tiles.map(x => `
+      <div class="stat-tile"><div class="v">${x.v}</div><div class="l">${x.l}</div></div>`).join('');
+
+    const legacyNegative = (t.floorTotalGwp ?? 0) < 0 || floors.some(f => (f.totalGwp ?? 0) < 0);
+    $('carbonNote').textContent = legacyNegative
+      ? 'Some floor types store a negative GWP (sequestration, from an older Floor Calculator run) — they\'re left out of embodied carbon. Recalculate those floors in Floor Calculator and export again.'
+      : '';
+  }
+
   // ---------------- Floor types ----------------
   function renderFloorTable(floors) {
     const table = $('floorTable');
@@ -1730,10 +1883,11 @@
     table.innerHTML = `
       <thead><tr><th>LDS type</th><th class="num">Floors</th><th class="num">Area (m²)</th>
         <th class="num">Carbon (kg/yr)</th><th class="num">Run-off avoided (m³/yr)</th>
-        <th class="num">O₂ produced (kg/yr)</th><th class="num">Cost saved</th></tr></thead>
+        <th class="num">O₂ produced (kg/yr)</th><th class="num">Embodied CO₂e (kg)</th><th class="num">Cost saved</th></tr></thead>
       <tbody>${floors.map(f => `<tr><td>${escapeAttr(f.ldsType)}</td><td class="num">${fixed(f.floorCount, 0)}</td>
         <td class="num">${fixed(f.areaSquareMeters, 1)}</td><td class="num">${fixed(f.carbonSequesteredAnnualKg, 1)}</td>
         <td class="num">${fixed(f.runoffAvoidedAnnualM3, 1)}</td><td class="num">${fixed(f.oxygenProducedAnnualKg, 1)}</td>
+        <td class="num">${fixed(Math.max(0, f.totalGwp ?? 0), 0)}</td>
         <td class="num">${fixed(f.costSavedAnnual, 0)} (as calculated)</td></tr>`).join('')}</tbody>`;
   }
 

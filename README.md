@@ -25,8 +25,12 @@ yearly CO₂e uptake, as the Dashboard app shows it) and a floor/softscape
 breakdown table. In the header, a **growth-year slider** (for projects that
 model the same planted layout at different tree ages — 0 yr as planted plus
 5/10/15/20/25 or custom years from Growth Projections, or design options in
-older models) picks the year everything shows; click any translation card to
-drive the growth bar/curve charts by that metric.
+older models) picks the year everything shows. Near the bottom, **growth
+curves** plot all five benefits on one chart in distinct colours (each as a %
+of its own peak, so litres, kilograms and money share one axis, with the real
+values in the tooltip and a table view), shading the years once every tree has
+reached full size; click any translation card to chart that metric's yearly
+figures as bars and bring its curve to the front.
 
 No backend, no build step, no signup — open `index.html` in a browser (or
 host it on GitHub Pages) and drop in a JSON file. Parsing happens entirely in
@@ -51,7 +55,9 @@ species common name — see "Most impactful tree" below).
    then steps through that option's years. Toggle **Annual / Lifetime**, and
    the species chart between **Chart / Pie / Table** view. Click any
    translation card (Avoided water run-off, CO₂, Air pollutants, Air
-   generated, Cost saved) to make the growth charts below plot that metric.
+   generated, Cost saved), or a growth-curve legend entry, to make the growth
+   bars plot that metric and bring its curve to the front; the curves follow
+   the Annual / Lifetime toggle and switch between **Chart / Table**.
 
 Don't have an export handy? Click **Load sample data** to preview the layout
 with the bundled example (`sample-data/example-export.json`).
@@ -122,8 +128,12 @@ meaningless. Growth years come from tree worksets named with a year count:
 Growth Projections moves the original trees onto `LIM_Growth_0yr - Baseline`
 (year 0, as planted) and copies them onto `LIM_Growth_<N>yr` for each year
 asked for — 5/10/15/20/25 by default, any whole year up to 100. A tree stops
-growing once it reaches its type's mature size (or 25 years after planting
-without one), so late years can level off. Older models used one design
+growing once it reaches its type's mature size — the LDS max height/width
+(`!_S_PLT_LDS_MaxHeight_Length` / `MaxWidth_Length`, downloaded from
+Airtable's `Max_Height` / `Max_Width`) — or 25 years after planting without
+one: the app caps each tree's modelled age there, so its i-Tree inputs and
+results stop changing. Once every tree is capped, later years' figures are
+identical, and the page shades that stretch of the growth curves. Older models used one design
 option per year instead (e.g. "Growth Timeline : 5/10/15/20/25 Years"); those
 exports still load as one timeline. When a model has growth-year worksets
 *and* real design options, each scenario is one option at one year and

@@ -33,6 +33,10 @@
        segments apart. Fixed order/roles, not cycled arbitrarily. */
     --cat-1: #8cae8a; --cat-2: #7fa2c9; --cat-3: #d99b77; --cat-4: #d3b566;
     --cat-5: #b491b0; --cat-6: #74ada4; --cat-7: #b3a184; --cat-8: #cf8b96;
+    /* Growth-curve lines, one per benefit. The pastels above are too grey and low-contrast for 2px
+       lines, so these are the dataviz reference hues in an order validated (validate_palette.js,
+       adjacent pairs, light and dark) for blue water, green carbon and gold cost. */
+    --line-water: #2a78d6; --line-carbon: #1baf7a; --line-air: #6250d6; --line-oxygen: #e87ba4; --line-cost: #eda100;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -47,6 +51,7 @@
       --inactive: #454f43;
       --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
       --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
+      --line-water: #3987e5; --line-carbon: #199e70; --line-air: #9085e9; --line-oxygen: #d55181; --line-cost: #c98500;
     }
   }
   :root[data-theme="dark"] {
@@ -61,6 +66,7 @@
     --inactive: #454f43;
     --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
     --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
+    --line-water: #3987e5; --line-carbon: #199e70; --line-air: #9085e9; --line-oxygen: #d55181; --line-cost: #c98500;
   }
 
   * { box-sizing: border-box; }
@@ -230,6 +236,15 @@
   /* growth-over-time chart */
   .growth-chart-wrap { margin-top: 4px; }
   .growth-svg { width: 100%; height: auto; display: block; }
+  .growth-svg:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; border-radius: 6px; }
+  /* A short stroke of the series colour keys a line series (legend, tooltip, table header). */
+  .line-key { display: inline-block; width: 14px; height: 0; border-top: 2px solid; border-radius: 1px; margin-right: 6px; vertical-align: middle; flex: none; }
+  .curve-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 4px; }
+  .curve-legend button { display: inline-block; text-align: left; border: none; background: transparent; font: inherit; font-size: 12px;
+    color: var(--text-secondary); padding: 3px 0; cursor: pointer; }
+  .curve-legend button.active { color: var(--text-primary); font-weight: 700; }
+  .curve-legend button.active .line-key { border-top-width: 3px; }
+  .curve-legend .note { color: var(--text-muted); font-weight: 400; margin-left: 4px; }
 
   /* small stat tiles for site KPIs */
   .stat-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
@@ -314,6 +329,11 @@
     white-space: nowrap; z-index: 50; opacity: 0; transition: opacity 0.08s ease;
   }
   .tooltip.show { opacity: 1; }
+  .tooltip .tip-head { font-weight: 700; margin-bottom: 4px; }
+  .tooltip .tip-row { display: flex; align-items: center; gap: 6px; line-height: 1.6; }
+  .tooltip .tip-row strong { font-variant-numeric: tabular-nums; }
+  .tooltip .line-key { border-top-width: 3px; margin-right: 0; }
+  .tooltip .tip-row .tip-muted { opacity: 0.72; }
 
   footer.methodology {
     margin-top: 22px; padding: 16px 18px; border-radius: 12px; background: var(--surface-2);
@@ -531,12 +551,20 @@
     <div class="panel" id="growthCurvePanel" style="margin-bottom:14px; display:none;">
       <div class="panel-head">
         <div>
-          <h3 id="growthCurveTitle">Growth curve</h3>
-          <div class="panel-sub" id="growthCurveSub">Lifetime cumulative, traced across growth years</div>
+          <h3 id="growthCurveTitle">Growth curves</h3>
+          <div class="panel-sub" id="growthCurveSub">Each benefit as a % of its own peak, so all five share one scale</div>
+        </div>
+        <div class="toggle-tabs" id="growthCurveViewTabs">
+          <button data-view="chart" class="active">Chart</button>
+          <button data-view="table">Table</button>
         </div>
       </div>
-      <div class="growth-chart-wrap">
+      <div class="curve-legend" id="growthCurveLegend"></div>
+      <div class="growth-chart-wrap" id="growthCurveChartWrap">
         <div id="growthCurveHost"></div>
+      </div>
+      <div class="table-scroll" id="growthCurveTableWrap" style="display:none;">
+        <table class="data" id="growthCurveTable"></table>
       </div>
     </div>
 
@@ -547,9 +575,12 @@
       used one design option per year). They're snapshots of one site in time, not alternatives to add
       together, so figures are shown for one selected year at a time rather than summed — a "25 years" total
       blended with a "5 years" total would be meaningless. A tree stops growing once it reaches its type's
-      mature size (or 25 years after planting when no mature size is known), so later years can level off.
-      When the model also has real design options, the Scenario dropdown picks one and the slider steps
-      through that option's years.
+      mature size — the LDS max height/width the app downloads from Airtable — or 25 years after planting
+      when no mature size is known, so later years level off; the growth curves shade the years after every
+      tree has reached full size, where the figures stop changing. The curves show each benefit as a % of its
+      own peak across the years, so litres, kilograms and money share one scale; the tooltip and the table
+      give the real figures. When the model also has real design options, the Scenario dropdown picks one
+      and the slider steps through that option's years.
       <br><br>
       <strong>Embodied carbon:</strong> the planting areas' one-off GWP — the product + transport stages of
       their materials from the landscape data sheet, as Floor Calculator records it. Vegetation's negative
@@ -591,46 +622,47 @@
 
   // Mostly-green family, not a categorical rainbow — each metric gets its own step of the brand
   // green ramp (Cost Saved is the one deliberate exception, gold, echoing the app's own hero-total
-  // treatment), so a translation card's color and "its" growth chart always match.
+  // treatment), so a translation card's color and its "Growth over time" bars always match. The
+  // all-benefits growth-curve chart needs five hues that tell apart, so its lines use --line-*.
   const PALETTE = {
     water: 'var(--brand-500)', carbon: 'var(--brand-700)', air: 'var(--brand-900)',
     oxygen: 'var(--brand-300)', cost: 'var(--gold)',
   };
 
-  // The metric the two "Growth over time" / "Growth curve" panels plot — selected by clicking a
-  // KPI card, not by the Annual/Lifetime toggle: those panels always show Annual (bars) and
-  // Lifetime (curve) for whichever metric is selected, regardless of what the toggle is set to.
+  // The metric the "Growth over time" bars plot (always Annual) and the growth curves bring to the
+  // front — selected by clicking a KPI card or a curve legend entry, not by the Annual/Lifetime
+  // toggle. The curves themselves plot all five metrics on the toggle's basis.
   const METRICS = {
     water: {
-      label: 'Avoided water run-off', unit: 'L', color: PALETTE.water,
+      label: 'Avoided water run-off', unit: 'L', color: PALETTE.water, line: 'var(--line-water)',
       annual: (t) => (t.runoffAvoidedAnnualM3 ?? 0) * 1000,
       lifetime: (t) => (t.runoffAvoidedLifetimeM3 ?? 0) * 1000,
     },
     carbon: {
-      label: 'CO₂ sequestration', unit: 'kg', color: PALETTE.carbon,
+      label: 'CO₂ sequestration', unit: 'kg', color: PALETTE.carbon, line: 'var(--line-carbon)',
       annual: (t) => t.co2EquivalentAnnualKg ?? 0,
       lifetime: (t) => t.co2EquivalentLifetimeKg ?? 0,
     },
     air: {
-      label: 'Air pollutants removed', unit: 'kg', color: PALETTE.air,
+      label: 'Air pollutants removed', unit: 'kg', color: PALETTE.air, line: 'var(--line-air)',
       annual: (t) => t.pollutantsRemovedAnnual?.totalKg ?? 0,
       lifetime: (t) => t.pollutantsRemovedLifetime?.totalKg ?? 0,
     },
     oxygen: {
-      label: 'Air generated (O₂)', unit: 'kg', color: PALETTE.oxygen,
+      label: 'Air generated (O₂)', unit: 'kg', color: PALETTE.oxygen, line: 'var(--line-oxygen)',
       annual: (t) => (t.co2EquivalentAnnualKg ?? 0) * EQUIV.o2PerCo2MassRatio + (t.floorOxygenProducedAnnualKg ?? 0),
       // Floors export an annual oxygen figure only; adding one year of it to a lifetime tree
       // total mixed annual and cumulative values, so lifetime oxygen is tree-sourced only.
       lifetime: (t) => (t.co2EquivalentLifetimeKg ?? 0) * EQUIV.o2PerCo2MassRatio,
     },
     cost: {
-      label: 'Cost saved', unit: 'money', color: PALETTE.cost,
+      label: 'Cost saved', unit: 'money', color: PALETTE.cost, line: 'var(--line-cost)',
       annual: (t) => t.treeCostSavedAnnual ?? 0,
       lifetime: (t) => t.treeCostSavedLifetime ?? 0,
     },
   };
 
-  const state = { data: null, period: 'annual', speciesView: 'chart', pollutantView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
+  const state = { data: null, period: 'annual', speciesView: 'chart', pollutantView: 'chart', curveView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
 
   // ISO 3166-1 alpha-2 -> alpha-3, standard reference table (stable, does not change) — bridges the
   // reverse-geocoder's alpha-2 country code to geoBoundaries' alpha-3 lookup key.
@@ -873,8 +905,17 @@
     });
     wrap.querySelector('.slicer-readout').hidden = !ticks.some(b => b.classList.contains('minor'));
   }
+  function redrawGrowthCurves() {
+    renderGrowthCurveChart(timeline(), currentScenario().label, state.data.project.currency || 'USD');
+  }
+  let resizeFrame = 0;
   window.addEventListener('resize', () => {
-    if (state.data && $('scenarioTabs').style.display !== 'none') layoutSlicerTicks($('scenarioTabs'));
+    if (!state.data || $('dashboard').style.display === 'none') return;
+    cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => {
+      if ($('scenarioTabs').style.display !== 'none') layoutSlicerTicks($('scenarioTabs'));
+      redrawGrowthCurves();
+    });
   });
 
   function selectScenario(index) {
@@ -950,6 +991,24 @@
     $('pollutantTableWrap').style.display = state.pollutantView === 'table' ? 'block' : 'none';
   });
 
+  $('growthCurveViewTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if (!btn) return;
+    state.curveView = btn.dataset.view;
+    [...$('growthCurveViewTabs').children].forEach(b => b.classList.toggle('active', b === btn));
+    $('growthCurveLegend').style.display = state.curveView === 'chart' ? 'flex' : 'none';
+    $('growthCurveChartWrap').style.display = state.curveView === 'chart' ? 'block' : 'none';
+    $('growthCurveTableWrap').style.display = state.curveView === 'table' ? 'block' : 'none';
+    if (state.curveView === 'chart') redrawGrowthCurves(); // it was drawn while hidden, at the fallback width
+  });
+
+  $('growthCurveLegend').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-metric]');
+    if (!btn) return;
+    state.growthMetric = btn.dataset.metric;
+    renderAll();
+  });
+
   // ---------------- Rendering ----------------
   function renderAll() {
     const d = state.data;
@@ -993,20 +1052,16 @@
   // ---------------- Growth-over-time (growth-year scenarios) ----------------
   // Growth years model the same planted layout at different tree ages (0 = as planted, then
   // 5/10/15/20/25 or custom years) — genuinely different points in time for one site, not independent
-  // alternatives to sum. Two separate charts, not one combined chart: a horizontal bar chart for
-  // comparing each stage's Annual rate, and a line chart for the Lifetime cumulative trend shape
-  // across stages — Annual and Lifetime aren't drawn together because they're different bases (a
-  // yearly rate vs. a running total), so mixing them on one scale would be misleading, not just
-  // cluttered. Which metric is plotted is picked by clicking a KPI card above, not the Annual/
-  // Lifetime toggle — that toggle only affects the KPI cards' own displayed value.
+  // alternatives to sum. Two charts: horizontal bars comparing one metric's Annual rate per year (the
+  // metric picked by clicking a KPI card), and growth curves tracing all five metrics' shapes across
+  // the years on the Annual/Lifetime toggle's basis — never both bases at once, since a yearly rate
+  // and a running total on one scale would be misleading, not just cluttered.
   function scenarioGrowthData(scenarios, selectedLabel, metricKey) {
     const metric = METRICS[metricKey];
     return scenarios.map(s => ({
       key: s.label,
-      years: s.years,
       xLabel: scenarioLabelOf(s),
       annual: metric.annual(s.totals || {}),
-      lifetime: metric.lifetime(s.totals || {}),
       selected: s.label === selectedLabel,
     }));
   }
@@ -1017,18 +1072,34 @@
     return fixed(v, digits) + ' ' + metric.unit;
   }
 
-  function bindGrowthInteractions(host, tipSelector) {
-    host.querySelectorAll(tipSelector).forEach(el => {
-      el.addEventListener('mousemove', (e) => showTooltip(e, el.dataset.tip));
-      el.addEventListener('mouseleave', hideTooltip);
+  /** Clicking any [data-scenario] element inside host shows that growth year everywhere. */
+  function bindScenarioClicks(host) {
+    host.querySelectorAll('[data-scenario]').forEach((el) => {
+      el.addEventListener('click', () => selectScenarioLabel(el.dataset.scenario));
     });
-    host.querySelectorAll('[data-scenario]').forEach(el => {
-      el.addEventListener('click', () => {
-        state.scenarioLabel = el.dataset.scenario;
-        renderScenarioTabs();
-        renderAll();
-      });
-    });
+  }
+
+  function selectScenarioLabel(label) {
+    state.scenarioLabel = label;
+    renderScenarioTabs();
+    renderAll();
+  }
+
+  // The app stops a tree growing once its type reaches its LDS max height/width (Airtable's
+  // Max_Height/Max_Width) — or 25 years after planting without one — so once every tree is capped,
+  // each later growth year's figures come out identical. Returns the index of the first year of
+  // that closing plateau; null when growth never levels off, or never started (every year identical).
+  function plateauStart(scenarios) {
+    const physical = (s) => {
+      const t = s.totals || {};
+      return [t.treeCount, t.carbonSequesteredAnnualKg, t.carbonSequesteredLifetimeKg, t.runoffAvoidedAnnualM3,
+        t.pollutantsRemovedAnnual?.totalKg].map(v => v ?? 0);
+    };
+    const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 1e-6 * Math.max(1, Math.abs(v), Math.abs(b[i])));
+    const last = physical(scenarios[scenarios.length - 1]);
+    let k = scenarios.length - 1;
+    while (k > 0 && same(physical(scenarios[k - 1]), last)) k--;
+    return k > 0 && k < scenarios.length - 1 ? k : null;
   }
 
   // ---- Chart 1: horizontal bar chart (Annual magnitude per stage) ----
@@ -1053,17 +1124,10 @@
         <div class="bar-track"><div class="bar-fill" style="width:${(d.annual / max * 100).toFixed(1)}%;background:${metric.color}"></div></div>
         <div class="val">${formatMetricValue(metric, d.annual, currency)}</div>
       </div>`).join('');
-
-    host.querySelectorAll('[data-scenario]').forEach((el) => {
-      el.addEventListener('click', () => {
-        state.scenarioLabel = el.dataset.scenario;
-        renderScenarioTabs();
-        renderAll();
-      });
-    });
+    bindScenarioClicks(host);
   }
 
-  // ---- Chart 2: line/curve chart (Lifetime cumulative trend shape across stages) ----
+  // ---- Chart 2: all five benefits' growth curves on one chart ----
   // Monotone cubic (Fritsch–Butland tangents) through points with strictly increasing x: smooth, but
   // never overshooting between stages, so a cumulative total never appears to dip — Catmull-Rom
   // would loop back on itself once growth years are unevenly spaced (e.g. 0, 5, 10, 50, 100).
@@ -1090,6 +1154,13 @@
     return d;
   }
 
+  // Five benefits in four units can't share a y-axis as raw values, and a second axis would invent
+  // correlations, so each is indexed to its own peak across the timeline: 100% is that benefit's
+  // highest value, and the shapes — how fast each grows, where it levels off — compare directly. The
+  // basis follows the Annual/Lifetime toggle; the crosshair tooltip and the table view carry the real
+  // values. The metric picked on the translation cards is drawn on top, thicker, with its value.
+  const CURVE_SERIES = ['water', 'carbon', 'air', 'oxygen', 'cost'];
+
   function renderGrowthCurveChart(scenarios, selectedLabel, currency) {
     const panel = $('growthCurvePanel');
     if (scenarios.length <= 1) {
@@ -1098,80 +1169,147 @@
     }
     panel.style.display = 'block';
 
-    const metric = METRICS[state.growthMetric];
-    $('growthCurveTitle').textContent = 'Growth curve — ' + metric.label;
+    const basisLabel = state.period === 'annual' ? 'Annual' : 'Lifetime';
+    const n = scenarios.length;
+    const selected = Math.max(0, scenarios.findIndex(s => s.label === selectedLabel));
+    const series = CURVE_SERIES.map((key) => {
+      const metric = METRICS[key];
+      const values = scenarios.map(s => metric[state.period](s.totals || {}));
+      const peak = Math.max(0, ...values);
+      return { key, metric, values, peak, pct: values.map(v => peak > 0 ? Math.max(0, v) / peak * 100 : 0) };
+    });
+    // Lifetime O2 is CO2 times a constant, so indexed they're one curve — say so in the legend rather
+    // than let one line silently cover the other.
+    series.forEach((s, i) => {
+      const twin = series.slice(0, i).find(o => o.peak > 0 && s.peak > 0 && o.pct.every((p, j) => Math.abs(p - s.pct[j]) < 0.5));
+      s.note = twin ? 'same curve as ' + twin.metric.label : s.peak > 0 ? '' : 'none recorded';
+    });
+    const focus = series.find(s => s.key === state.growthMetric) || series[1];
+    const plateau = plateauStart(scenarios);
 
-    const data = scenarioGrowthData(scenarios, selectedLabel, state.growthMetric);
+    $('growthCurveTitle').textContent = 'Growth curves — ' + basisLabel;
+    // The focus metric's selected-year value rides its legend entry rather than the plot, where a
+    // label can land beside another series' dot and read as that series' value.
+    const focusValue = ` · ${formatMetricValue(focus.metric, focus.values[selected], currency)} at ${escapeAttr(scenarioLabelOf(scenarios[selected]))}`;
+    $('growthCurveLegend').innerHTML = series.map(s => `
+      <button type="button" data-metric="${s.key}" class="${s === focus ? 'active' : ''}" aria-pressed="${s === focus}"
+        title="Show ${s.metric.label} in the growth charts"><span class="line-key" style="border-top-color:${s.metric.line}"></span>${s.metric.label}${s === focus ? focusValue : ''}${s.note ? `<span class="note">— ${s.note}</span>` : ''}</button>`).join('');
 
-    const width = 640, height = 250;
-    // Wider side margins than the bar chart: points sit AT the left/right edges of the plot area
-    // (not inset half a group-width like bars), so the endpoint labels need room to center without
-    // the SVG's own viewport clipping them.
-    const marginLeft = 28, marginRight = 28, marginTop = 30, marginBottom = 30;
+    // Drawn at the host's own pixel width (640 while hidden), so text keeps its set size instead of
+    // scaling with the viewBox, and label-collision widths are real pixels. Points sit AT the plot's
+    // left/right edges, so the side margins leave room for the end year labels to centre (and, on
+    // the left, for the % ticks).
+    const host = $('growthCurveHost');
+    const width = Math.max(320, Math.round(host.clientWidth) || 640), height = width < 560 ? 240 : 290;
+    const marginLeft = 44, marginRight = 28, marginTop = 24, marginBottom = 30;
     const plotW = width - marginLeft - marginRight;
     const plotH = height - marginTop - marginBottom;
-    const n = data.length;
+    const right = width - marginRight, bottom = marginTop + plotH;
 
     // Growth years needn't be evenly spaced (0, 5, 10, 25, 50, ...), so when every stage has its own
     // year, x is to scale in years; otherwise stages are spaced evenly in order.
-    const byYear = data.every((d, i) => d.years != null && (i === 0 || d.years > data[i - 1].years));
-    const xs = data.map((d, i) => marginLeft + plotW * (byYear
-      ? (d.years - data[0].years) / (data[n - 1].years - data[0].years)
+    const byYear = scenarios.every((s, i) => s.years != null && (i === 0 || s.years > scenarios[i - 1].years));
+    const xs = scenarios.map((s, i) => marginLeft + plotW * (byYear
+      ? (s.years - scenarios[0].years) / (scenarios[n - 1].years - scenarios[0].years)
       : i / (n - 1)));
-    $('growthCurveSub').textContent = 'Lifetime cumulative, traced across growth years' + (byYear ? ' (spaced to scale)' : '');
+    const yFor = (p) => marginTop + plotH - p / 100 * plotH;
+    $('growthCurveSub').textContent = 'Each benefit as a % of its own peak, so all five share one scale' +
+      (byYear ? ' · years to scale' : '') + ' — hover for values, click a year to view it';
 
-    const maxV = Math.max(1e-9, ...data.map((d) => d.lifetime));
-    const yFor = (v) => marginTop + plotH - (v / maxV) * plotH;
-    const points = data.map((d, i) => [xs[i], yFor(d.lifetime)]);
+    // From the year every tree is at full size the figures stop changing: shade that stretch.
+    const band = plateau == null ? '' : `
+      <rect x="${xs[plateau].toFixed(1)}" y="${marginTop}" width="${(right - xs[plateau]).toFixed(1)}" height="${plotH}" fill="var(--surface-1)"/>
+      <line x1="${xs[plateau].toFixed(1)}" y1="${marginTop}" x2="${xs[plateau].toFixed(1)}" y2="${bottom}" stroke="var(--baseline)" stroke-width="1"/>
+      <text x="${right - 6}" y="${bottom - 8}" text-anchor="end" fill="var(--text-muted)" style="font-size:11px;">${width < 560 ? 'Full size' : 'All trees at full size'} from ${escapeAttr(scenarioLabelOf(scenarios[plateau]))}${width < 560 ? '' : ' — growth capped'}</text>`;
 
-    const dots = points.map(([px, py], i) => {
-      const d = data[i];
-      return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${d.selected ? 5 : 4}" fill="${metric.color}" stroke="var(--surface-2)" stroke-width="2"/>`;
-    }).join('');
+    const grid = [0, 50, 100].map(p => `
+      <line x1="${marginLeft}" y1="${yFor(p)}" x2="${right}" y2="${yFor(p)}" stroke="${p === 0 ? 'var(--baseline)' : 'var(--gridline)'}" stroke-width="1"/>
+      <text x="${marginLeft - 8}" y="${yFor(p) + 4}" text-anchor="end" fill="var(--text-muted)" style="font-size:11px;">${p}%</text>`).join('');
 
-    // Each stage's hover/click band runs to the midpoints with its neighbours.
-    const hitAreas = data.map((d, i) => {
-      const left = i === 0 ? 0 : (xs[i - 1] + xs[i]) / 2;
-      const right = i === n - 1 ? width : (xs[i] + xs[i + 1]) / 2;
-      const tip = `${escapeAttr(d.xLabel)} — Lifetime: ${escapeAttr(formatMetricValue(metric, d.lifetime, currency))}`;
-      return `<rect class="growth-hit" data-scenario="${escapeAttr(d.key)}" data-tip="${tip}"
-        x="${left.toFixed(1)}" y="${marginTop}" width="${(right - left).toFixed(1)}" height="${plotH}" fill="transparent" style="cursor:pointer;"/>`;
-    }).join('');
+    const ordered = [...series.filter(s => s !== focus), focus];
+    const paths = ordered.map(s => `<path d="${smoothPath(s.pct.map((p, i) => [xs[i], yFor(p)]))}" fill="none" stroke="${s.metric.line}"
+      stroke-width="${s === focus ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+    const xSel = xs[selected];
+    const dots = ordered.map(s => `<circle cx="${xSel.toFixed(1)}" cy="${yFor(s.pct[selected]).toFixed(1)}" r="${s === focus ? 5 : 4}"
+      fill="${s.metric.line}" stroke="var(--surface-2)" stroke-width="2"/>`).join('');
 
-    // Axis labels that would overlap one already placed are left off (the dot and its tooltip stay).
-    // Placed in priority order: the selected stage, then the first and last, then left to right.
+    // Axis labels that would overlap one already placed are left off (the crosshair still reaches
+    // the year). Placed in priority order: the selected year, then the first and last, then left to right.
+    const xLabel = (i) => scenarioLabelOf(scenarios[i]);
     const labelHalfWidth = (text) => (text.length * 7 + 6) / 2; // ~12px system-ui, in viewBox units
-    const priority = (i) => data[i].selected ? -3 : i === 0 ? -2 : i === n - 1 ? -1 : i;
+    const priority = (i) => i === selected ? -3 : i === 0 ? -2 : i === n - 1 ? -1 : i;
     const placed = [];
-    [...data.keys()].sort((a, b) => priority(a) - priority(b)).forEach((i) => {
-      const half = labelHalfWidth(data[i].xLabel);
+    [...scenarios.keys()].sort((a, b) => priority(a) - priority(b)).forEach((i) => {
+      const half = labelHalfWidth(xLabel(i));
       if (placed.every(([l, r]) => xs[i] + half + 6 <= l || xs[i] - half - 6 >= r)) placed.push([xs[i] - half, xs[i] + half, i]);
     });
-    const labels = placed.map(([, , i]) => {
-      const d = data[i];
-      return `
-      <text x="${xs[i].toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
-        fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
-        style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${escapeAttr(d.xLabel)}</text>`;
+    const labels = placed.map(([, , i]) => `
+      <text x="${xs[i].toFixed(1)}" y="${bottom + 20}" text-anchor="middle" fill="${i === selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
+        style="font-size:12px;font-weight:${i === selected ? 700 : 500};">${escapeAttr(xLabel(i))}</text>`).join('');
+
+    // Each year's hover/click band runs to the midpoints with its neighbours.
+    const hits = scenarios.map((s, i) => {
+      const l = i === 0 ? 0 : (xs[i - 1] + xs[i]) / 2;
+      const r = i === n - 1 ? width : (xs[i] + xs[i + 1]) / 2;
+      return `<rect class="growth-hit" data-scenario="${escapeAttr(s.label)}" data-index="${i}"
+        x="${l.toFixed(1)}" y="${marginTop}" width="${(r - l).toFixed(1)}" height="${plotH}" fill="transparent" style="cursor:pointer;"/>`;
     }).join('');
 
-    const valueLabels = data.map((d, i) => {
-      if (!d.selected) return '';
-      const [px, py] = points[i];
-      return `<text x="${px.toFixed(1)}" y="${(py - 12).toFixed(1)}" text-anchor="middle" fill="var(--text-primary)" style="font-size:12px;font-weight:700;">${formatMetricValue(metric, d.lifetime, currency)}</text>`;
-    }).join('');
-
-    const host = $('growthCurveHost');
+    const hadFocus = host.contains(document.activeElement);
     host.innerHTML = `
-      <svg class="growth-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
-        <line x1="${marginLeft}" y1="${marginTop + plotH}" x2="${width - marginRight}" y2="${marginTop + plotH}" stroke="var(--baseline)" stroke-width="1"/>
-        <path d="${smoothPath(points)}" fill="none" stroke="${metric.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        ${dots}
-        ${valueLabels}
-        ${labels}
-        ${hitAreas}
+      <svg class="growth-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" tabindex="0"
+        aria-label="Growth curves, ${basisLabel.toLowerCase()} — left and right arrow keys step through the years, Enter shows one">
+        ${band}${grid}${paths}${dots}${labels}
+        <line class="curve-crosshair" x1="0" y1="${marginTop}" x2="0" y2="${bottom}" stroke="var(--text-muted)" stroke-width="1" visibility="hidden"/>
+        ${hits}
       </svg>`;
-    bindGrowthInteractions(host, '.growth-hit');
+
+    // One tooltip, every series: the crosshair snaps to a year and lists all five real values.
+    const svg = host.querySelector('svg');
+    const crosshair = svg.querySelector('.curve-crosshair');
+    const tipFor = (i) => `<div class="tip-head">${escapeAttr(scenarioTitleOf(scenarios[i]))} · ${basisLabel}</div>` +
+      series.map(s => `<div class="tip-row"><span class="line-key" style="border-top-color:${s.metric.line}"></span>
+        <strong>${escapeAttr(formatMetricValue(s.metric, s.values[i], currency))}</strong>
+        <span class="tip-muted">${s.metric.label} · ${fixed(s.pct[i], 0)}% of peak</span></div>`).join('');
+    const showAt = (i, pos) => {
+      crosshair.setAttribute('x1', xs[i]);
+      crosshair.setAttribute('x2', xs[i]);
+      crosshair.setAttribute('visibility', 'visible');
+      showTooltip(pos, tipFor(i));
+    };
+    const hide = () => { crosshair.setAttribute('visibility', 'hidden'); hideTooltip(); };
+    svg.querySelectorAll('.growth-hit').forEach((el) => {
+      el.addEventListener('mousemove', (e) => showAt(Number(el.dataset.index), e));
+      el.addEventListener('mouseleave', hide);
+    });
+    bindScenarioClicks(svg);
+
+    // Keyboard: one tab stop; arrows move the crosshair, Enter/Space shows that year.
+    let cursor = selected;
+    const posFor = (i) => {
+      const box = svg.getBoundingClientRect();
+      return { clientX: box.left + xs[i] / width * box.width, clientY: box.top + marginTop / height * box.height };
+    };
+    svg.addEventListener('focus', () => { if (svg.matches(':focus-visible')) showAt(cursor, posFor(cursor)); });
+    svg.addEventListener('blur', hide);
+    svg.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        cursor = Math.max(0, Math.min(n - 1, cursor + (e.key === 'ArrowRight' ? 1 : -1)));
+        showAt(cursor, posFor(cursor));
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        selectScenarioLabel(scenarios[cursor].label);
+      }
+    });
+    if (hadFocus) svg.focus();
+
+    $('growthCurveTable').innerHTML = `
+      <thead><tr><th>Growth year</th>${series.map(s => `<th class="num"><span class="line-key" style="border-top-color:${s.metric.line}"></span>${s.metric.label}</th>`).join('')}</tr></thead>
+      <tbody>${scenarios.map((s, i) => `<tr data-scenario="${escapeAttr(s.label)}" style="cursor:pointer;${i === selected ? 'font-weight:700;' : ''}">
+        <td>${escapeAttr(scenarioLabelOf(s))}${plateau != null && i >= plateau ? ' <span style="color:var(--text-muted);font-weight:400;">· full size</span>' : ''}</td>
+        ${series.map(c => `<td class="num">${escapeAttr(formatMetricValue(c.metric, c.values[i], currency))}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    bindScenarioClicks($('growthCurveTable'));
   }
 
   // One clean line-art glyph per metric, reused on both sides of its translation row (raw value and

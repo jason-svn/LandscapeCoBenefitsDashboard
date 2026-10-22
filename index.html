@@ -1672,7 +1672,10 @@
     const tiles = [
       { l: 'Distinct species', v: fixed(k.distinctSpeciesCount ?? 0, 0) },
       { l: 'Bloom months covered', v: fixed(k.distinctBloomMonthsCount ?? 0, 0) + ' / 12' },
-      { l: 'Habitat connectivity', v: k.habitatConnectivityScore == null ? 'Not entered' : fixed(k.habitatConnectivityScore, 1) },
+      // The Connectivity tool's connected habitat (EC as a % of the habitat area), else a GIS score entered by hand.
+      k.connectedHabitatPercent != null
+        ? { l: 'Connected habitat', v: fixed(k.connectedHabitatPercent, 1) + '%' + (k.equivalentConnectedAreaSquareMeters != null ? ' · EC ' + fixed(k.equivalentConnectedAreaSquareMeters, 0) + ' m²' : '') }
+        : { l: 'Habitat connectivity', v: k.habitatConnectivityScore == null ? 'Not entered' : fixed(k.habitatConnectivityScore, 1) },
     ];
     // Schema v6: pollen (trees + planting areas), allergenic species and irrigation demand.
     if (k.treePollenAnnualKg != null || k.floorPollenAnnualKg != null) {

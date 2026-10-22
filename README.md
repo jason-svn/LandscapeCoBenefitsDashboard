@@ -120,6 +120,15 @@ using WWP-sheet estimates (`totals.estimatedTreeCount`). With growth-year
 worksets and i-Tree forecasts, `benefitsFromForecast` is true and each growth
 year's benefits are every planted tree's forecast for that year.
 
+**Connected habitat.** When the Connectivity tool has scored a scenario,
+`siteKpi.connectedHabitatPercent` is its equivalent connected area (EC) as a
+share of the habitat area (100% when every tree and planting area reaches
+every other), and `siteKpi.equivalentConnectedAreaSquareMeters` the EC itself,
+averaged over the tool's dispersal distances. It's the scheme as drawn (new
+trees at the design year), the same in every growth year. The page shows it
+in place of the hand-entered `habitatConnectivityScore`, which stays as the
+fallback. Both fields are absent for scenarios not scored yet.
+
 `location` is best-effort — Revit's Site Location defaults to an unset
 placeholder on new projects, so the map panel gracefully shows a "location
 not set" message instead when it's missing.

@@ -25,6 +25,8 @@
     --brand-wash-strong: rgba(23,107,43,0.16);
     --gold: #e8b93e; /* hero-total accent, on the dark hero bar only */
     --gold-ink: #96700f; /* same accent, darkened for text/icons on a light surface */
+    --cost-ink: #a4512b; /* maintenance cost: an outgoing, set apart from the benefit greens */
+    --danger-ink: #c73a3a;
     --hero-bg: #14201a;
     --active: var(--brand-500);
     --inactive: #c7d0c3;
@@ -43,6 +45,7 @@
       --brand-900: #0d2412; --brand-700: #2c8a41; --brand-500: #4caf62; --brand-300: #7fd08f;
       --brand-wash: rgba(76,175,98,0.14); --brand-wash-strong: rgba(76,175,98,0.22);
       --gold: #f0c65a; --gold-ink: #f0c65a; --hero-bg: #0c1210;
+      --cost-ink: #e8936a; --danger-ink: #f07f7f;
       --active: var(--brand-500);
       --inactive: #454f43;
       --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
@@ -57,6 +60,7 @@
     --brand-900: #0d2412; --brand-700: #2c8a41; --brand-500: #4caf62; --brand-300: #7fd08f;
     --brand-wash: rgba(76,175,98,0.14); --brand-wash-strong: rgba(76,175,98,0.22);
     --gold: #f0c65a; --gold-ink: #f0c65a; --hero-bg: #0c1210;
+    --cost-ink: #e8936a; --danger-ink: #f07f7f;
     --active: var(--brand-500);
     --inactive: #454f43;
     --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
@@ -239,6 +243,26 @@
   .stat-tile .v { font-size: 19px; font-weight: 700; }
   .stat-tile .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
+  /* --- Data notices: trees whose results are out of date, missing, or WWP-sheet estimates --- */
+  .notice { border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; line-height: 1.45; border: 1px solid; }
+  .notice strong { display: block; margin-bottom: 2px; }
+  .notice.error { background: color-mix(in srgb, var(--danger-ink) 10%, transparent); border-color: color-mix(in srgb, var(--danger-ink) 40%, transparent); }
+  .notice.error strong { color: var(--danger-ink); }
+  .notice.warn { background: color-mix(in srgb, var(--gold) 14%, transparent); border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+  .notice.warn strong { color: var(--gold-ink); }
+
+  /* --- Maintenance & net value: shown as plainly as the benefits --- */
+  .upkeep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 720px) { .upkeep-grid { grid-template-columns: 1fr; } }
+  .upkeep-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .upkeep-tile .l { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+  .upkeep-tile .v { font-size: 26px; font-weight: 700; margin-top: 4px; overflow-wrap: anywhere; }
+  .upkeep-tile .d { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .upkeep-tile.cost { border-color: color-mix(in srgb, var(--cost-ink) 45%, transparent); }
+  .upkeep-tile.cost .v { color: var(--cost-ink); }
+  .upkeep-tile.saved .v { color: var(--brand-700); }
+  .upkeep-tile.net .v.neg { color: var(--danger-ink); }
+
   /* Site & biodiversity: ratio meters + a species-composition donut, both feeding off the same panel */
   .site-bio-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: center; margin-bottom: 16px; }
   @media (max-width: 760px) { .site-bio-grid { grid-template-columns: 1fr; } }
@@ -349,6 +373,18 @@
   </section>
 
   <main id="dashboard">
+
+    <div id="dataNotices"></div>
+
+    <div class="panel" id="upkeepPanel" style="margin-bottom:14px;">
+      <div class="panel-head">
+        <div>
+          <h3>Maintenance cost &amp; net value</h3>
+          <div class="panel-sub" id="upkeepSub">What keeping the planting costs each year, against what it saves</div>
+        </div>
+      </div>
+      <div class="upkeep-grid" id="upkeepGrid"></div>
+    </div>
 
     <div class="panel" style="margin-bottom:14px;">
       <div class="panel-head">
@@ -482,7 +518,7 @@
       <div class="panel-head">
         <div>
           <h3>Planted floor / softscape types</h3>
-          <div class="panel-sub">Annual figures — floor cost has no reliable currency provenance, so it's shown "as calculated"</div>
+          <div class="panel-sub">Annual figures, from the WWP sheet's rates for each planting type</div>
         </div>
       </div>
       <div class="table-scroll">
@@ -906,7 +942,58 @@
     renderSpecies(scenario.species || [], isAnnual, currency);
     renderSiteKpi(scenario.siteKpi || {}, t.treeCount ?? 0);
     renderBng(scenario.bng);
-    renderFloorTable(scenario.floorTypes || []);
+    renderFloorTable(scenario.floorTypes || [], currency);
+    renderNotices(t);
+    renderUpkeep(t, currency, isAnnual);
+    $('growthBarSub').textContent = scenario.benefitsFromForecast
+      ? "Annual, each planted tree's i-Tree forecast for that growth year — click a translation card above to change the metric, click a stage to view it there"
+      : 'Annual, by design-option growth stage — click a translation card above to change the metric, click a stage to view it there';
+  }
+
+  // Trees whose figures need a caveat. Stale: i-Tree results whose inputs changed since; they stay
+  // in the totals with their old numbers. No result: left out of the totals. Estimated: WWP-sheet
+  // per-tree rates standing in where i-Tree couldn't calculate. Older exports only have the second.
+  function renderNotices(t) {
+    const stale = t.staleTreeCount ?? 0;
+    const missing = t.treesExcludedFromTotals ?? 0;
+    const estimated = t.estimatedTreeCount ?? 0;
+    const notes = [];
+    if (stale > 0) notes.push(['error', `${fixed(stale, 0)} tree(s) have out-of-date results`,
+      "Their species, age, size, condition or location changed after i-Tree calculated them. They're still in these totals with their old results until they're recalculated in Revit (Tree Calculator → Validate → Calculate valid) and exported again."]);
+    if (missing > 0) notes.push(['warn', `${fixed(missing, 0)} tree(s) have no result and aren't counted`,
+      "They're missing i-Tree inputs, or i-Tree couldn't calculate them and there's no WWP sheet estimate."]);
+    if (estimated > 0) notes.push(['warn', `${fixed(estimated, 0)} tree(s) use WWP sheet estimates`,
+      "i-Tree couldn't calculate them, so their benefits come from the WWP sheet's per-tree rates instead."]);
+    $('dataNotices').innerHTML = notes.map(([cls, title, body]) =>
+      `<div class="notice ${cls}" role="${cls === 'error' ? 'alert' : 'status'}"><strong>${escapeAttr(title)}</strong>${escapeAttr(body)}</div>`).join('');
+  }
+
+  // Maintenance against value, per year in both periods: a maintenance rate has no lifetime figure
+  // to set against. Trees' upkeep is per tree and planting areas' per m², both from the WWP sheet.
+  // Exports from before maintenance was added have neither field, and the panel stays hidden.
+  function renderUpkeep(t, currency, isAnnual) {
+    const hasUpkeep = t.treeMaintenanceCostAnnual != null || t.floorMaintenanceCostAnnual != null;
+    $('upkeepPanel').style.display = hasUpkeep ? '' : 'none';
+    if (!hasUpkeep) return;
+    const treeUpkeep = t.treeMaintenanceCostAnnual ?? 0;
+    const floorUpkeep = t.floorMaintenanceCostAnnual ?? 0;
+    const upkeep = treeUpkeep + floorUpkeep;
+    const treeSaved = t.treeCostSavedAnnual ?? 0;
+    const floorSaved = t.floorCostSavedAnnual ?? 0;
+    const net = treeSaved + floorSaved - upkeep;
+    $('upkeepSub').textContent = isAnnual
+      ? 'What keeping the planting costs each year, against what it saves'
+      : 'Per year, also in the lifetime view: maintenance rates are yearly';
+    const tiles = [
+      { cls: 'cost', l: 'Maintenance cost', v: upkeep > 0 ? money(upkeep, currency) + '/yr' : 'No rates yet',
+        d: upkeep > 0 ? `Trees ${money(treeUpkeep, currency)} · planting areas ${money(floorUpkeep, currency)}`
+                      : "No maintenance rates in this export: import the WWP sheet's maintenance costs onto the Revit types." },
+      { cls: 'saved', l: 'Cost saved', v: money(treeSaved + floorSaved, currency) + '/yr',
+        d: `Trees ${money(treeSaved, currency)} · planting areas ${money(floorSaved, currency)}` },
+      { cls: 'net', l: 'Net value', v: money(net, currency) + '/yr', neg: net < 0, d: 'Cost saved minus maintenance' },
+    ];
+    $('upkeepGrid').innerHTML = tiles.map(x => `
+      <div class="upkeep-tile ${x.cls}"><div class="l">${x.l}</div><div class="v${x.neg ? ' neg' : ''}">${x.v}</div><div class="d">${x.d}</div></div>`).join('');
   }
 
   // ---------------- Growth-over-time (design-option scenarios) ----------------
@@ -1567,7 +1654,8 @@
     const meters = [
       { l: 'Canopy cover', v: k.canopyCoverPercent },
       { l: 'Softscape ratio', v: k.softscapeSurfaceRatioPercent },
-      { l: 'Native species share', v: k.nativeSpeciesRatioPercent },
+      { l: k.treesWithNativeStatusCount != null
+          ? `Native share (of ${fixed(k.treesWithNativeStatusCount, 0)} classified trees)` : 'Native species share', v: k.nativeSpeciesRatioPercent },
       { l: 'Dark-sky compliant lighting', v: k.lightingCompliancePercent },
     ];
     $('siteMeters').innerHTML = meters.map((m) => {
@@ -1586,6 +1674,17 @@
       { l: 'Bloom months covered', v: fixed(k.distinctBloomMonthsCount ?? 0, 0) + ' / 12' },
       { l: 'Habitat connectivity', v: k.habitatConnectivityScore == null ? 'Not entered' : fixed(k.habitatConnectivityScore, 1) },
     ];
+    // Schema v6: pollen (trees + planting areas), allergenic species and irrigation demand.
+    if (k.treePollenAnnualKg != null || k.floorPollenAnnualKg != null) {
+      tiles.push({ l: 'Pollen released (kg/yr)', v: fixed((k.treePollenAnnualKg ?? 0) + (k.floorPollenAnnualKg ?? 0), 1) });
+    }
+    if (k.allergenicTreeCount != null) {
+      tiles.push({ l: 'Allergenic trees', v: fixed(k.allergenicTreeCount, 0) + (totalTrees ? ' / ' + fixed(totalTrees, 0) : '') });
+    }
+    if (k.lowWaterTreeCount != null) {
+      tiles.push({ l: 'Low-water trees', v: (k.treesWithIrrigationFactorCount ?? 0) > 0
+        ? fixed(k.lowWaterTreeCount, 0) + ' / ' + fixed(k.treesWithIrrigationFactorCount, 0) : 'Not entered' });
+    }
     $('siteKpiStrip').innerHTML = tiles.map(t => `
       <div class="stat-tile"><div class="v">${t.v}</div><div class="l">${t.l}</div></div>`).join('');
 
@@ -1721,20 +1820,21 @@
   }
 
   // ---------------- Floor types ----------------
-  function renderFloorTable(floors) {
+  function renderFloorTable(floors, currency) {
     const table = $('floorTable');
     if (!floors.length) {
       table.innerHTML = '<tbody><tr><td style="color:var(--text-muted);">No floor / softscape data in this export.</td></tr></tbody>';
       return;
     }
+    const hasUpkeep = floors.some(f => f.maintenanceCostAnnual != null);
     table.innerHTML = `
       <thead><tr><th>LDS type</th><th class="num">Floors</th><th class="num">Area (m²)</th>
         <th class="num">Carbon (kg/yr)</th><th class="num">Run-off avoided (m³/yr)</th>
-        <th class="num">O₂ produced (kg/yr)</th><th class="num">Cost saved</th></tr></thead>
+        <th class="num">O₂ produced (kg/yr)</th><th class="num">Cost saved (/yr)</th>${hasUpkeep ? '<th class="num">Maintenance (/yr)</th>' : ''}</tr></thead>
       <tbody>${floors.map(f => `<tr><td>${escapeAttr(f.ldsType)}</td><td class="num">${fixed(f.floorCount, 0)}</td>
         <td class="num">${fixed(f.areaSquareMeters, 1)}</td><td class="num">${fixed(f.carbonSequesteredAnnualKg, 1)}</td>
         <td class="num">${fixed(f.runoffAvoidedAnnualM3, 1)}</td><td class="num">${fixed(f.oxygenProducedAnnualKg, 1)}</td>
-        <td class="num">${fixed(f.costSavedAnnual, 0)} (as calculated)</td></tr>`).join('')}</tbody>`;
+        <td class="num">${money(f.costSavedAnnual, currency)}</td>${hasUpkeep ? `<td class="num">${money(f.maintenanceCostAnnual ?? 0, currency)}</td>` : ''}</tr>`).join('')}</tbody>`;
   }
 
 })();

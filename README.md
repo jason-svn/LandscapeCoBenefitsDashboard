@@ -53,8 +53,8 @@ with the bundled example (`sample-data/example-export.json`).
 
 ## What's in the export
 
-The JSON schema this page expects (schema version 3; version 2 still loads,
-just without the BNG panel) is produced by
+The JSON schema this page expects (schema version 6; versions 2 to 5 still
+load, without the panels their fields feed) is produced by
 `DashboardJsonExportService` in the
 [LandscapeDataManager](https://github.com/jason-svn/LandscapeDataManager)
 repo (`src/WWP.LandscapeDataManager.App.Dashboard`). All mass/volume figures
@@ -66,7 +66,7 @@ Top-level shape:
 
 ```jsonc
 {
-  "schemaVersion": 3,
+  "schemaVersion": 6,
   "project": { "title", "currency", "location": { "latitude", "longitude", "placeName" }, "generatedAt" },
   "scenarios": [
     {
@@ -107,6 +107,18 @@ collapses to a single `"Primary model"` scenario, so this still works for
 the common case. `years` is parsed from the design option's name (`5`, `10`,
 `15`, `20`, or `25`) and is `null` when it can't be — the page falls back to
 showing the option's full label in that case.
+
+**Maintenance and data notices (schema 6).** The maintenance panel leads the
+page: yearly maintenance for trees (per tree) and planting areas (per m²) from
+the WWP sheet's rates, against the cost saved, and the net value. It shows
+per year in both periods, since a maintenance rate has no lifetime figure, and
+stays hidden for exports without maintenance figures. Above it, notices count
+trees whose i-Tree results are out of date (`totals.staleTreeCount`: their
+inputs changed after calculation; they stay in the totals with their old
+results), trees with no result (`totals.treesExcludedFromTotals`) and trees
+using WWP-sheet estimates (`totals.estimatedTreeCount`). With growth-year
+worksets and i-Tree forecasts, `benefitsFromForecast` is true and each growth
+year's benefits are every planted tree's forecast for that year.
 
 `location` is best-effort — Revit's Site Location defaults to an unset
 placeholder on new projects, so the map panel gracefully shows a "location

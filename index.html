@@ -251,6 +251,13 @@
   /* growth-over-time chart */
   .growth-chart-wrap { margin-top: 4px; }
   .growth-svg { width: 100%; height: auto; display: block; }
+  .growth-legend { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; font-size: 13px; }
+  .growth-legend button { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface-2); color: var(--text-secondary); font: inherit; cursor: pointer; }
+  .growth-legend button.current { border-color: var(--text-primary); color: var(--text-primary); font-weight: 700; }
+  .growth-legend .swatch { width: 18px; height: 0; border-top: 3px solid; flex: none; }
+  .growth-legend .swatch.dashed { border-top-style: dashed; }
+  .growth-legend .v { font-variant-numeric: tabular-nums; color: var(--text-primary); }
 
   /* small stat tiles for site KPIs */
   .stat-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
@@ -320,10 +327,14 @@
   .site3d-view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .site3d-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
     padding: 24px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
-  .site3d-reset { position: absolute; right: 10px; top: 10px; font-size: 12px; padding: 6px 10px; }
+  .site3d-tools { position: absolute; right: 10px; top: 10px; display: flex; align-items: center; gap: 8px; }
+  .site3d-reset { font-size: 12px; padding: 6px 10px; }
+  .site3d-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 10px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface-2); color: var(--text-secondary); cursor: pointer; user-select: none; }
+  .site3d-toggle input { margin: 0; accent-color: var(--brand-700); }
   .site3d-overlay { position: absolute; left: 10px; bottom: 10px; right: 10px; font-size: 11px; color: var(--text-muted); pointer-events: none; }
   .site3d-overlay span { background: color-mix(in srgb, var(--surface-2) 88%, transparent); border-radius: 6px; padding: 3px 8px; }
-  .site3d-card { position: absolute; left: 10px; top: 10px; max-width: min(270px, calc(100% - 120px)); background: var(--surface-2);
+  .site3d-card { position: absolute; left: 10px; top: 52px; max-width: min(270px, calc(100% - 20px)); background: var(--surface-2);
     border: 1px solid var(--border); border-radius: 10px; padding: 10px 28px 10px 12px; font-size: 12px; line-height: 1.55;
     box-shadow: 0 2px 10px rgba(0,0,0,0.10); display: none; }
   .site3d-card.show { display: block; }
@@ -371,6 +382,10 @@
   .lane-table.has-selection .lt-row:not(.selected) .lt-cell { opacity: 0.45; }
   .lt-row.flash .lt-cell { background: color-mix(in srgb, var(--gold) 32%, transparent); opacity: 1; }
   .lt-row.muted .lt-cell { color: var(--text-muted); }
+  .lane-table .lane.grey { background: var(--lane-grey); }
+  .lt-group.grey { color: var(--lane-grey-ink); }
+  .lane-table.static .lt-row { cursor: default; }
+  .lane-table.static .lt-row:hover .lt-cell { background: none; }
   .floor-swatch { width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; flex: none; }
 
   /* Growth-year slicer: a stepped range input with labelled, clickable stops under it */
@@ -476,7 +491,10 @@
         <div class="site3d-view" id="site3dView">
           <div class="site3d-status" id="site3dStatus">Loading the 3D view…</div>
           <div class="site3d-card" id="site3dCard" role="status" aria-live="polite"></div>
-          <button class="btn site3d-reset" id="site3dReset" type="button">Reset view</button>
+          <div class="site3d-tools">
+            <label class="site3d-toggle" title="Highlight the tree or planting area under the pointer, and the one you click"><input type="checkbox" id="site3dHighlight" checked> Highlight</label>
+            <button class="btn site3d-reset" id="site3dReset" type="button">Reset view</button>
+          </div>
           <div class="site3d-overlay" id="site3dOverlay"></div>
         </div>
         <div class="site3d-board">
@@ -601,7 +619,7 @@
           <div class="legend" id="pollutantPieLegend"></div>
         </div>
         <div class="table-scroll" id="pollutantTableWrap" style="display:none;">
-          <table class="data" id="pollutantTable"></table>
+          <div class="lane-table static" id="pollutantTable"></div>
         </div>
       </div>
 
@@ -623,7 +641,7 @@
           <div class="legend" id="speciesPieLegend"></div>
         </div>
         <div class="table-scroll" id="speciesTableWrap" style="display:none;">
-          <table class="data" id="speciesTable"></table>
+          <div class="lane-table static" id="speciesTable"></div>
         </div>
       </div>
     </div>
@@ -636,7 +654,7 @@
         </div>
       </div>
       <div class="table-scroll">
-        <table class="data" id="floorTable"></table>
+        <div class="lane-table static" id="floorTable"></div>
       </div>
     </div>
 
@@ -842,12 +860,20 @@
     if (file) readFile(file);
   });
 
-  // Inlined (kept identical to sample-data/example-export.json) rather than fetch()'d, so
-  // "Load sample data" also works when this page is opened directly as a file:// document —
-  // Chromium blocks fetch() of local files from a file:// origin.
-  const SAMPLE_DATA = {"schemaVersion":3,"project":{"title":"Hereford Station Transport Hub","currency":"GBP","location":{"latitude":52.0567,"longitude":-2.716,"placeName":"Hereford Station, Hereford, UK"},"generatedAt":"2026-09-11T09:30:00Z"},"scenarios":[{"label":"Growth Timeline : 5 Years","years":5,"isPrimary":false,"totals":{"treeCount":48,"treesExcludedFromTotals":2,"carbonSequesteredAnnualKg":452.8,"carbonSequesteredLifetimeKg":1358.4,"co2EquivalentAnnualKg":452.8,"co2EquivalentLifetimeKg":1358.4,"runoffAvoidedAnnualM3":42.97,"runoffAvoidedLifetimeM3":128.91,"rainfallInterceptedAnnualM3":24.94,"rainfallInterceptedLifetimeM3":74.82,"pollutantsRemovedAnnual":{"pm25Kg":0.772,"no2Kg":0.528,"o3Kg":0.447,"so2Kg":0.248,"coKg":0.284,"totalKg":2.278},"pollutantsRemovedLifetime":{"pm25Kg":2.32,"no2Kg":1.58,"o3Kg":1.34,"so2Kg":0.74,"coKg":0.85,"totalKg":6.83},"treeCostSavedAnnual":1051.1,"treeCostSavedLifetime":3153.3,"carbonCostSavedAnnual":398,"carbonCostSavedLifetime":1194,"stormWaterCostSavedAnnual":454.9,"stormWaterCostSavedLifetime":1364.7,"airPollutionCostSavedAnnual":198.2,"airPollutionCostSavedLifetime":594.6,"floorCount":6,"floorAreaSquareMeters":340,"floorCarbonSequesteredAnnualKg":210,"floorRunoffAvoidedAnnualM3":48,"floorPollutionMassRemovedAnnualKg":0.9,"floorOxygenProducedAnnualKg":8119,"floorTotalGwp":1450,"floorCostSavedAnnual":788},"siteKpi":{"canopyCoverPercent":24.5,"canopyAreaSquareMeters":755.4,"softscapeSurfaceRatioPercent":34.5,"perviousAreaSquareMeters":2250,"distinctSpeciesCount":9,"nativeTreeCount":31,"adaptiveTreeCount":12,"nativeSpeciesRatioPercent":68,"distinctBloomMonthsCount":7,"distinctEcologicalFunctionsCount":5,"habitatConnectivityScore":58.9,"lightingFixtureCount":24,"darkSkyCompliantFixtureCount":19,"lightingCompliancePercent":79.2},"bng":{"metricVersion":"The Statutory Biodiversity Metric 2024-07-23","baselineUnits":3.6,"postInterventionUnits":4.8,"netChangeUnits":1.2,"netChangePercent":33.33333333333333,"statutoryNetGainPercent":10,"meetsStatutoryNetGain":true,"isComplete":true,"retainedUnits":1.8,"enhancedUnits":1.15,"createdUnits":1.85,"lostUnits":1.2,"floorCount":14,"currentFloorCount":14,"retainedFloorCount":4,"enhancedFloorCount":2,"lostFloorCount":3,"createdFloorCount":5,"checkDataFloorCount":1,"staleFloorCount":0,"notAssessedFloorCount":0,"excludedFloorCount":0,"totalAreaHectares":0.62,"assessedAreaHectares":0.62,"byBroadHabitat":[{"name":"Grassland","floorCount":6,"areaHectares":0.21,"habitatUnits":2.1},{"name":"Heathland and shrub","floorCount":3,"areaHectares":0.09,"habitatUnits":1.2},{"name":"Urban","floorCount":1,"areaHectares":0.08,"habitatUnits":0.9},{"name":"Wetland","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}],"byDistinctiveness":[{"name":"Medium","floorCount":7,"areaHectares":0.24,"habitatUnits":2.9},{"name":"Low","floorCount":3,"areaHectares":0.14,"habitatUnits":1.3},{"name":"High","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}]},"species":[{"speciesCode":"ACPL","commonName":"Norway Maple","treeCount":12,"carbonSequesteredAnnualKg":130,"carbonSequesteredLifetimeKg":389.9,"pollutionMassRemovedAnnualKg":0.65,"pollutionMassRemovedLifetimeKg":1.95,"carbonCostSavedAnnual":105.6,"carbonCostSavedLifetime":316.8,"stormWaterCostSavedAnnual":121.8,"stormWaterCostSavedLifetime":365.5,"airPollutionCostSavedAnnual":52.8,"airPollutionCostSavedLifetime":158.4},{"speciesCode":"QURO","commonName":"English Oak","treeCount":8,"carbonSequesteredAnnualKg":113.7,"carbonSequesteredLifetimeKg":341.1,"pollutionMassRemovedAnnualKg":0.49,"pollutionMassRemovedLifetimeKg":1.46,"carbonCostSavedAnnual":93.4,"carbonCostSavedLifetime":280.2,"stormWaterCostSavedAnnual":105.6,"stormWaterCostSavedLifetime":316.8,"airPollutionCostSavedAnnual":40.6,"airPollutionCostSavedLifetime":121.8},{"speciesCode":"BEPE","commonName":"Silver Birch","treeCount":10,"carbonSequesteredAnnualKg":77.2,"carbonSequesteredLifetimeKg":231.5,"pollutionMassRemovedAnnualKg":0.37,"pollutionMassRemovedLifetimeKg":1.1,"carbonCostSavedAnnual":65,"carbonCostSavedLifetime":194.9,"stormWaterCostSavedAnnual":73.1,"stormWaterCostSavedLifetime":219.3,"airPollutionCostSavedAnnual":30.5,"airPollutionCostSavedLifetime":91.4},{"speciesCode":"TICO","commonName":"Small-Leaved Lime","treeCount":6,"carbonSequesteredAnnualKg":56.9,"carbonSequesteredLifetimeKg":170.6,"pollutionMassRemovedAnnualKg":0.24,"pollutionMassRemovedLifetimeKg":0.73,"carbonCostSavedAnnual":44.7,"carbonCostSavedLifetime":134,"stormWaterCostSavedAnnual":52.8,"stormWaterCostSavedLifetime":158.4,"airPollutionCostSavedAnnual":22.3,"airPollutionCostSavedLifetime":67},{"speciesCode":"FRAX","commonName":"Common Ash","treeCount":5,"carbonSequesteredAnnualKg":38.6,"carbonSequesteredLifetimeKg":115.7,"pollutionMassRemovedAnnualKg":0.2,"pollutionMassRemovedLifetimeKg":0.61,"carbonCostSavedAnnual":32.5,"carbonCostSavedLifetime":97.5,"stormWaterCostSavedAnnual":36.6,"stormWaterCostSavedLifetime":109.7,"airPollutionCostSavedAnnual":16.2,"airPollutionCostSavedLifetime":48.7},{"speciesCode":"CABE","commonName":"Hornbeam","treeCount":4,"carbonSequesteredAnnualKg":22.3,"carbonSequesteredLifetimeKg":67,"pollutionMassRemovedAnnualKg":0.14,"pollutionMassRemovedLifetimeKg":0.43,"carbonCostSavedAnnual":18.3,"carbonCostSavedLifetime":54.8,"stormWaterCostSavedAnnual":20.3,"stormWaterCostSavedLifetime":60.9,"airPollutionCostSavedAnnual":8.9,"airPollutionCostSavedLifetime":26.8},{"speciesCode":"SOAU","commonName":"Whitebeam","treeCount":2,"carbonSequesteredAnnualKg":10.2,"carbonSequesteredLifetimeKg":30.5,"pollutionMassRemovedAnnualKg":0.11,"pollutionMassRemovedLifetimeKg":0.34,"carbonCostSavedAnnual":8.1,"carbonCostSavedLifetime":24.4,"stormWaterCostSavedAnnual":8.9,"stormWaterCostSavedLifetime":26.8,"airPollutionCostSavedAnnual":4.1,"airPollutionCostSavedLifetime":12.2},{"speciesCode":"ILAQ","commonName":"Holly","treeCount":1,"carbonSequesteredAnnualKg":4.1,"carbonSequesteredLifetimeKg":12.2,"pollutionMassRemovedAnnualKg":0.09,"pollutionMassRemovedLifetimeKg":0.27,"carbonCostSavedAnnual":3.2,"carbonCostSavedLifetime":9.7,"stormWaterCostSavedAnnual":3.7,"stormWaterCostSavedLifetime":11,"airPollutionCostSavedAnnual":1.6,"airPollutionCostSavedLifetime":4.9}],"floorTypes":[{"ldsType":"Extensive Green Roof","floorCount":3,"areaSquareMeters":210,"carbonSequesteredAnnualKg":140,"runoffAvoidedAnnualM3":32,"pollutionMassRemovedAnnualKg":0.55,"oxygenProducedAnnualKg":5200,"totalGwp":900,"costSavedAnnual":520},{"ldsType":"Permeable Paving","floorCount":2,"areaSquareMeters":95,"carbonSequesteredAnnualKg":40,"runoffAvoidedAnnualM3":14,"pollutionMassRemovedAnnualKg":0.2,"oxygenProducedAnnualKg":1800,"totalGwp":380,"costSavedAnnual":190},{"ldsType":"Rain Garden","floorCount":1,"areaSquareMeters":35,"carbonSequesteredAnnualKg":30,"runoffAvoidedAnnualM3":2,"pollutionMassRemovedAnnualKg":0.15,"oxygenProducedAnnualKg":1119,"totalGwp":170,"costSavedAnnual":78}]},{"label":"Growth Timeline : 10 Years (Primary)","years":10,"isPrimary":true,"totals":{"treeCount":48,"treesExcludedFromTotals":2,"carbonSequesteredAnnualKg":1115,"carbonSequesteredLifetimeKg":6690,"co2EquivalentAnnualKg":1115,"co2EquivalentLifetimeKg":6690,"runoffAvoidedAnnualM3":105.8,"runoffAvoidedLifetimeM3":634.8,"rainfallInterceptedAnnualM3":61.4,"rainfallInterceptedLifetimeM3":368.4,"pollutantsRemovedAnnual":{"pm25Kg":1.9,"no2Kg":1.3,"o3Kg":1.1,"so2Kg":0.61,"coKg":0.7,"totalKg":5.61},"pollutantsRemovedLifetime":{"pm25Kg":11.4,"no2Kg":7.8,"o3Kg":6.6,"so2Kg":3.66,"coKg":4.2,"totalKg":33.66},"treeCostSavedAnnual":2588,"treeCostSavedLifetime":15528,"carbonCostSavedAnnual":980,"carbonCostSavedLifetime":5880,"stormWaterCostSavedAnnual":1120,"stormWaterCostSavedLifetime":6720,"airPollutionCostSavedAnnual":488,"airPollutionCostSavedLifetime":2928,"floorCount":6,"floorAreaSquareMeters":340,"floorCarbonSequesteredAnnualKg":210,"floorRunoffAvoidedAnnualM3":48,"floorPollutionMassRemovedAnnualKg":0.9,"floorOxygenProducedAnnualKg":8119,"floorTotalGwp":1450,"floorCostSavedAnnual":788},"siteKpi":{"canopyCoverPercent":34,"canopyAreaSquareMeters":1860,"softscapeSurfaceRatioPercent":41,"perviousAreaSquareMeters":2250,"distinctSpeciesCount":9,"nativeTreeCount":31,"adaptiveTreeCount":12,"nativeSpeciesRatioPercent":68,"distinctBloomMonthsCount":7,"distinctEcologicalFunctionsCount":5,"habitatConnectivityScore":72,"lightingFixtureCount":24,"darkSkyCompliantFixtureCount":19,"lightingCompliancePercent":79.2},"bng":{"metricVersion":"The Statutory Biodiversity Metric 2024-07-23","baselineUnits":3.6,"postInterventionUnits":4.8,"netChangeUnits":1.2,"netChangePercent":33.33333333333333,"statutoryNetGainPercent":10,"meetsStatutoryNetGain":true,"isComplete":true,"retainedUnits":1.8,"enhancedUnits":1.15,"createdUnits":1.85,"lostUnits":1.2,"floorCount":14,"currentFloorCount":14,"retainedFloorCount":4,"enhancedFloorCount":2,"lostFloorCount":3,"createdFloorCount":5,"checkDataFloorCount":1,"staleFloorCount":0,"notAssessedFloorCount":0,"excludedFloorCount":0,"totalAreaHectares":0.62,"assessedAreaHectares":0.62,"byBroadHabitat":[{"name":"Grassland","floorCount":6,"areaHectares":0.21,"habitatUnits":2.1},{"name":"Heathland and shrub","floorCount":3,"areaHectares":0.09,"habitatUnits":1.2},{"name":"Urban","floorCount":1,"areaHectares":0.08,"habitatUnits":0.9},{"name":"Wetland","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}],"byDistinctiveness":[{"name":"Medium","floorCount":7,"areaHectares":0.24,"habitatUnits":2.9},{"name":"Low","floorCount":3,"areaHectares":0.14,"habitatUnits":1.3},{"name":"High","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}]},"species":[{"speciesCode":"ACPL","commonName":"Norway Maple","treeCount":12,"carbonSequesteredAnnualKg":320,"carbonSequesteredLifetimeKg":1920,"pollutionMassRemovedAnnualKg":1.6,"pollutionMassRemovedLifetimeKg":9.6,"carbonCostSavedAnnual":260,"carbonCostSavedLifetime":1560,"stormWaterCostSavedAnnual":300,"stormWaterCostSavedLifetime":1800,"airPollutionCostSavedAnnual":130,"airPollutionCostSavedLifetime":780},{"speciesCode":"QURO","commonName":"English Oak","treeCount":8,"carbonSequesteredAnnualKg":280,"carbonSequesteredLifetimeKg":1680,"pollutionMassRemovedAnnualKg":1.2,"pollutionMassRemovedLifetimeKg":7.2,"carbonCostSavedAnnual":230,"carbonCostSavedLifetime":1380,"stormWaterCostSavedAnnual":260,"stormWaterCostSavedLifetime":1560,"airPollutionCostSavedAnnual":100,"airPollutionCostSavedLifetime":600},{"speciesCode":"BEPE","commonName":"Silver Birch","treeCount":10,"carbonSequesteredAnnualKg":190,"carbonSequesteredLifetimeKg":1140,"pollutionMassRemovedAnnualKg":0.9,"pollutionMassRemovedLifetimeKg":5.4,"carbonCostSavedAnnual":160,"carbonCostSavedLifetime":960,"stormWaterCostSavedAnnual":180,"stormWaterCostSavedLifetime":1080,"airPollutionCostSavedAnnual":75,"airPollutionCostSavedLifetime":450},{"speciesCode":"TICO","commonName":"Small-Leaved Lime","treeCount":6,"carbonSequesteredAnnualKg":140,"carbonSequesteredLifetimeKg":840,"pollutionMassRemovedAnnualKg":0.6,"pollutionMassRemovedLifetimeKg":3.6,"carbonCostSavedAnnual":110,"carbonCostSavedLifetime":660,"stormWaterCostSavedAnnual":130,"stormWaterCostSavedLifetime":780,"airPollutionCostSavedAnnual":55,"airPollutionCostSavedLifetime":330},{"speciesCode":"FRAX","commonName":"Common Ash","treeCount":5,"carbonSequesteredAnnualKg":95,"carbonSequesteredLifetimeKg":570,"pollutionMassRemovedAnnualKg":0.5,"pollutionMassRemovedLifetimeKg":3,"carbonCostSavedAnnual":80,"carbonCostSavedLifetime":480,"stormWaterCostSavedAnnual":90,"stormWaterCostSavedLifetime":540,"airPollutionCostSavedAnnual":40,"airPollutionCostSavedLifetime":240},{"speciesCode":"CABE","commonName":"Hornbeam","treeCount":4,"carbonSequesteredAnnualKg":55,"carbonSequesteredLifetimeKg":330,"pollutionMassRemovedAnnualKg":0.35,"pollutionMassRemovedLifetimeKg":2.1,"carbonCostSavedAnnual":45,"carbonCostSavedLifetime":270,"stormWaterCostSavedAnnual":50,"stormWaterCostSavedLifetime":300,"airPollutionCostSavedAnnual":22,"airPollutionCostSavedLifetime":132},{"speciesCode":"SOAU","commonName":"Whitebeam","treeCount":2,"carbonSequesteredAnnualKg":25,"carbonSequesteredLifetimeKg":150,"pollutionMassRemovedAnnualKg":0.28,"pollutionMassRemovedLifetimeKg":1.68,"carbonCostSavedAnnual":20,"carbonCostSavedLifetime":120,"stormWaterCostSavedAnnual":22,"stormWaterCostSavedLifetime":132,"airPollutionCostSavedAnnual":10,"airPollutionCostSavedLifetime":60},{"speciesCode":"ILAQ","commonName":"Holly","treeCount":1,"carbonSequesteredAnnualKg":10,"carbonSequesteredLifetimeKg":60,"pollutionMassRemovedAnnualKg":0.22,"pollutionMassRemovedLifetimeKg":1.32,"carbonCostSavedAnnual":8,"carbonCostSavedLifetime":48,"stormWaterCostSavedAnnual":9,"stormWaterCostSavedLifetime":54,"airPollutionCostSavedAnnual":4,"airPollutionCostSavedLifetime":24}],"floorTypes":[{"ldsType":"Extensive Green Roof","floorCount":3,"areaSquareMeters":210,"carbonSequesteredAnnualKg":140,"runoffAvoidedAnnualM3":32,"pollutionMassRemovedAnnualKg":0.55,"oxygenProducedAnnualKg":5200,"totalGwp":900,"costSavedAnnual":520},{"ldsType":"Permeable Paving","floorCount":2,"areaSquareMeters":95,"carbonSequesteredAnnualKg":40,"runoffAvoidedAnnualM3":14,"pollutionMassRemovedAnnualKg":0.2,"oxygenProducedAnnualKg":1800,"totalGwp":380,"costSavedAnnual":190},{"ldsType":"Rain Garden","floorCount":1,"areaSquareMeters":35,"carbonSequesteredAnnualKg":30,"runoffAvoidedAnnualM3":2,"pollutionMassRemovedAnnualKg":0.15,"oxygenProducedAnnualKg":1119,"totalGwp":170,"costSavedAnnual":78}]},{"label":"Growth Timeline : 15 Years","years":15,"isPrimary":false,"totals":{"treeCount":48,"treesExcludedFromTotals":2,"carbonSequesteredAnnualKg":1888.8,"carbonSequesteredLifetimeKg":16999.2,"co2EquivalentAnnualKg":1888.8,"co2EquivalentLifetimeKg":16999.2,"runoffAvoidedAnnualM3":179.23,"runoffAvoidedLifetimeM3":1613.07,"rainfallInterceptedAnnualM3":104.01,"rainfallInterceptedLifetimeM3":936.09,"pollutantsRemovedAnnual":{"pm25Kg":3.219,"no2Kg":2.202,"o3Kg":1.863,"so2Kg":1.033,"coKg":1.186,"totalKg":9.503},"pollutantsRemovedLifetime":{"pm25Kg":28.97,"no2Kg":19.82,"o3Kg":16.77,"so2Kg":9.3,"coKg":10.67,"totalKg":85.53},"treeCostSavedAnnual":4384.1,"treeCostSavedLifetime":39456.9,"carbonCostSavedAnnual":1660.1,"carbonCostSavedLifetime":14940.9,"stormWaterCostSavedAnnual":1897.3,"stormWaterCostSavedLifetime":17075.7,"airPollutionCostSavedAnnual":826.7,"airPollutionCostSavedLifetime":7440.3,"floorCount":6,"floorAreaSquareMeters":340,"floorCarbonSequesteredAnnualKg":210,"floorRunoffAvoidedAnnualM3":48,"floorPollutionMassRemovedAnnualKg":0.9,"floorOxygenProducedAnnualKg":8119,"floorTotalGwp":1450,"floorCostSavedAnnual":788},"siteKpi":{"canopyCoverPercent":45.1,"canopyAreaSquareMeters":3150.9,"softscapeSurfaceRatioPercent":48.6,"perviousAreaSquareMeters":2250,"distinctSpeciesCount":9,"nativeTreeCount":31,"adaptiveTreeCount":12,"nativeSpeciesRatioPercent":68,"distinctBloomMonthsCount":7,"distinctEcologicalFunctionsCount":5,"habitatConnectivityScore":87.3,"lightingFixtureCount":24,"darkSkyCompliantFixtureCount":19,"lightingCompliancePercent":79.2},"bng":{"metricVersion":"The Statutory Biodiversity Metric 2024-07-23","baselineUnits":3.6,"postInterventionUnits":4.8,"netChangeUnits":1.2,"netChangePercent":33.33333333333333,"statutoryNetGainPercent":10,"meetsStatutoryNetGain":true,"isComplete":true,"retainedUnits":1.8,"enhancedUnits":1.15,"createdUnits":1.85,"lostUnits":1.2,"floorCount":14,"currentFloorCount":14,"retainedFloorCount":4,"enhancedFloorCount":2,"lostFloorCount":3,"createdFloorCount":5,"checkDataFloorCount":1,"staleFloorCount":0,"notAssessedFloorCount":0,"excludedFloorCount":0,"totalAreaHectares":0.62,"assessedAreaHectares":0.62,"byBroadHabitat":[{"name":"Grassland","floorCount":6,"areaHectares":0.21,"habitatUnits":2.1},{"name":"Heathland and shrub","floorCount":3,"areaHectares":0.09,"habitatUnits":1.2},{"name":"Urban","floorCount":1,"areaHectares":0.08,"habitatUnits":0.9},{"name":"Wetland","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}],"byDistinctiveness":[{"name":"Medium","floorCount":7,"areaHectares":0.24,"habitatUnits":2.9},{"name":"Low","floorCount":3,"areaHectares":0.14,"habitatUnits":1.3},{"name":"High","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}]},"species":[{"speciesCode":"ACPL","commonName":"Norway Maple","treeCount":12,"carbonSequesteredAnnualKg":542.1,"carbonSequesteredLifetimeKg":4878.8,"pollutionMassRemovedAnnualKg":2.71,"pollutionMassRemovedLifetimeKg":24.39,"carbonCostSavedAnnual":440.4,"carbonCostSavedLifetime":3964,"stormWaterCostSavedAnnual":508.2,"stormWaterCostSavedLifetime":4573.9,"airPollutionCostSavedAnnual":220.2,"airPollutionCostSavedLifetime":1982},{"speciesCode":"QURO","commonName":"English Oak","treeCount":8,"carbonSequesteredAnnualKg":474.3,"carbonSequesteredLifetimeKg":4268.9,"pollutionMassRemovedAnnualKg":2.03,"pollutionMassRemovedLifetimeKg":18.3,"carbonCostSavedAnnual":389.6,"carbonCostSavedLifetime":3506.6,"stormWaterCostSavedAnnual":440.4,"stormWaterCostSavedLifetime":3964,"airPollutionCostSavedAnnual":169.4,"airPollutionCostSavedLifetime":1524.6},{"speciesCode":"BEPE","commonName":"Silver Birch","treeCount":10,"carbonSequesteredAnnualKg":321.9,"carbonSequesteredLifetimeKg":2896.8,"pollutionMassRemovedAnnualKg":1.52,"pollutionMassRemovedLifetimeKg":13.72,"carbonCostSavedAnnual":271,"carbonCostSavedLifetime":2439.4,"stormWaterCostSavedAnnual":304.9,"stormWaterCostSavedLifetime":2744.3,"airPollutionCostSavedAnnual":127.1,"airPollutionCostSavedLifetime":1143.5},{"speciesCode":"TICO","commonName":"Small-Leaved Lime","treeCount":6,"carbonSequesteredAnnualKg":237.2,"carbonSequesteredLifetimeKg":2134.5,"pollutionMassRemovedAnnualKg":1.02,"pollutionMassRemovedLifetimeKg":9.15,"carbonCostSavedAnnual":186.3,"carbonCostSavedLifetime":1677.1,"stormWaterCostSavedAnnual":220.2,"stormWaterCostSavedLifetime":1982,"airPollutionCostSavedAnnual":93.2,"airPollutionCostSavedLifetime":838.5},{"speciesCode":"FRAX","commonName":"Common Ash","treeCount":5,"carbonSequesteredAnnualKg":160.9,"carbonSequesteredLifetimeKg":1448.4,"pollutionMassRemovedAnnualKg":0.85,"pollutionMassRemovedLifetimeKg":7.62,"carbonCostSavedAnnual":135.5,"carbonCostSavedLifetime":1219.7,"stormWaterCostSavedAnnual":152.5,"stormWaterCostSavedLifetime":1372.2,"airPollutionCostSavedAnnual":67.8,"airPollutionCostSavedLifetime":609.8},{"speciesCode":"CABE","commonName":"Hornbeam","treeCount":4,"carbonSequesteredAnnualKg":93.2,"carbonSequesteredLifetimeKg":838.5,"pollutionMassRemovedAnnualKg":0.59,"pollutionMassRemovedLifetimeKg":5.34,"carbonCostSavedAnnual":76.2,"carbonCostSavedLifetime":686.1,"stormWaterCostSavedAnnual":84.7,"stormWaterCostSavedLifetime":762.3,"airPollutionCostSavedAnnual":37.3,"airPollutionCostSavedLifetime":335.4},{"speciesCode":"SOAU","commonName":"Whitebeam","treeCount":2,"carbonSequesteredAnnualKg":42.4,"carbonSequesteredLifetimeKg":381.2,"pollutionMassRemovedAnnualKg":0.47,"pollutionMassRemovedLifetimeKg":4.27,"carbonCostSavedAnnual":33.9,"carbonCostSavedLifetime":304.9,"stormWaterCostSavedAnnual":37.3,"stormWaterCostSavedLifetime":335.4,"airPollutionCostSavedAnnual":16.9,"airPollutionCostSavedLifetime":152.5},{"speciesCode":"ILAQ","commonName":"Holly","treeCount":1,"carbonSequesteredAnnualKg":16.9,"carbonSequesteredLifetimeKg":152.5,"pollutionMassRemovedAnnualKg":0.37,"pollutionMassRemovedLifetimeKg":3.35,"carbonCostSavedAnnual":13.6,"carbonCostSavedLifetime":122,"stormWaterCostSavedAnnual":15.2,"stormWaterCostSavedLifetime":137.2,"airPollutionCostSavedAnnual":6.8,"airPollutionCostSavedLifetime":61}],"floorTypes":[{"ldsType":"Extensive Green Roof","floorCount":3,"areaSquareMeters":210,"carbonSequesteredAnnualKg":140,"runoffAvoidedAnnualM3":32,"pollutionMassRemovedAnnualKg":0.55,"oxygenProducedAnnualKg":5200,"totalGwp":900,"costSavedAnnual":520},{"ldsType":"Permeable Paving","floorCount":2,"areaSquareMeters":95,"carbonSequesteredAnnualKg":40,"runoffAvoidedAnnualM3":14,"pollutionMassRemovedAnnualKg":0.2,"oxygenProducedAnnualKg":1800,"totalGwp":380,"costSavedAnnual":190},{"ldsType":"Rain Garden","floorCount":1,"areaSquareMeters":35,"carbonSequesteredAnnualKg":30,"runoffAvoidedAnnualM3":2,"pollutionMassRemovedAnnualKg":0.15,"oxygenProducedAnnualKg":1119,"totalGwp":170,"costSavedAnnual":78}]},{"label":"Growth Timeline : 20 Years","years":20,"isPrimary":false,"totals":{"treeCount":48,"treesExcludedFromTotals":2,"carbonSequesteredAnnualKg":2745.5,"carbonSequesteredLifetimeKg":32946,"co2EquivalentAnnualKg":2745.5,"co2EquivalentLifetimeKg":32946,"runoffAvoidedAnnualM3":260.51,"runoffAvoidedLifetimeM3":3126.12,"rainfallInterceptedAnnualM3":151.18,"rainfallInterceptedLifetimeM3":1814.16,"pollutantsRemovedAnnual":{"pm25Kg":4.678,"no2Kg":3.201,"o3Kg":2.709,"so2Kg":1.502,"coKg":1.724,"totalKg":13.813},"pollutantsRemovedLifetime":{"pm25Kg":56.14,"no2Kg":38.41,"o3Kg":32.51,"so2Kg":18.02,"coKg":20.69,"totalKg":165.76},"treeCostSavedAnnual":6372.4,"treeCostSavedLifetime":76468.8,"carbonCostSavedAnnual":2413,"carbonCostSavedLifetime":28956,"stormWaterCostSavedAnnual":2757.8,"stormWaterCostSavedLifetime":33093.6,"airPollutionCostSavedAnnual":1201.6,"airPollutionCostSavedLifetime":14419.2,"floorCount":6,"floorAreaSquareMeters":340,"floorCarbonSequesteredAnnualKg":210,"floorRunoffAvoidedAnnualM3":48,"floorPollutionMassRemovedAnnualKg":0.9,"floorOxygenProducedAnnualKg":8119,"floorTotalGwp":1450,"floorCostSavedAnnual":788},"siteKpi":{"canopyCoverPercent":57.4,"canopyAreaSquareMeters":4579.9,"softscapeSurfaceRatioPercent":55,"perviousAreaSquareMeters":2250,"distinctSpeciesCount":9,"nativeTreeCount":31,"adaptiveTreeCount":12,"nativeSpeciesRatioPercent":68,"distinctBloomMonthsCount":7,"distinctEcologicalFunctionsCount":5,"habitatConnectivityScore":95,"lightingFixtureCount":24,"darkSkyCompliantFixtureCount":19,"lightingCompliancePercent":79.2},"bng":{"metricVersion":"The Statutory Biodiversity Metric 2024-07-23","baselineUnits":3.6,"postInterventionUnits":4.8,"netChangeUnits":1.2,"netChangePercent":33.33333333333333,"statutoryNetGainPercent":10,"meetsStatutoryNetGain":true,"isComplete":true,"retainedUnits":1.8,"enhancedUnits":1.15,"createdUnits":1.85,"lostUnits":1.2,"floorCount":14,"currentFloorCount":14,"retainedFloorCount":4,"enhancedFloorCount":2,"lostFloorCount":3,"createdFloorCount":5,"checkDataFloorCount":1,"staleFloorCount":0,"notAssessedFloorCount":0,"excludedFloorCount":0,"totalAreaHectares":0.62,"assessedAreaHectares":0.62,"byBroadHabitat":[{"name":"Grassland","floorCount":6,"areaHectares":0.21,"habitatUnits":2.1},{"name":"Heathland and shrub","floorCount":3,"areaHectares":0.09,"habitatUnits":1.2},{"name":"Urban","floorCount":1,"areaHectares":0.08,"habitatUnits":0.9},{"name":"Wetland","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}],"byDistinctiveness":[{"name":"Medium","floorCount":7,"areaHectares":0.24,"habitatUnits":2.9},{"name":"Low","floorCount":3,"areaHectares":0.14,"habitatUnits":1.3},{"name":"High","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}]},"species":[{"speciesCode":"ACPL","commonName":"Norway Maple","treeCount":12,"carbonSequesteredAnnualKg":787.9,"carbonSequesteredLifetimeKg":9455.2,"pollutionMassRemovedAnnualKg":3.94,"pollutionMassRemovedLifetimeKg":47.28,"carbonCostSavedAnnual":640.2,"carbonCostSavedLifetime":7682.3,"stormWaterCostSavedAnnual":738.7,"stormWaterCostSavedLifetime":8864.2,"airPollutionCostSavedAnnual":320.1,"airPollutionCostSavedLifetime":3841.2},{"speciesCode":"QURO","commonName":"English Oak","treeCount":8,"carbonSequesteredAnnualKg":689.4,"carbonSequesteredLifetimeKg":8273.3,"pollutionMassRemovedAnnualKg":2.95,"pollutionMassRemovedLifetimeKg":35.46,"carbonCostSavedAnnual":566.3,"carbonCostSavedLifetime":6795.9,"stormWaterCostSavedAnnual":640.2,"stormWaterCostSavedLifetime":7682.3,"airPollutionCostSavedAnnual":246.2,"airPollutionCostSavedLifetime":2954.7},{"speciesCode":"BEPE","commonName":"Silver Birch","treeCount":10,"carbonSequesteredAnnualKg":467.8,"carbonSequesteredLifetimeKg":5614,"pollutionMassRemovedAnnualKg":2.22,"pollutionMassRemovedLifetimeKg":26.59,"carbonCostSavedAnnual":394,"carbonCostSavedLifetime":4727.6,"stormWaterCostSavedAnnual":443.2,"stormWaterCostSavedLifetime":5318.5,"airPollutionCostSavedAnnual":184.7,"airPollutionCostSavedLifetime":2216.1},{"speciesCode":"TICO","commonName":"Small-Leaved Lime","treeCount":6,"carbonSequesteredAnnualKg":344.7,"carbonSequesteredLifetimeKg":4136.6,"pollutionMassRemovedAnnualKg":1.48,"pollutionMassRemovedLifetimeKg":17.73,"carbonCostSavedAnnual":270.9,"carbonCostSavedLifetime":3250.2,"stormWaterCostSavedAnnual":320.1,"stormWaterCostSavedLifetime":3841.2,"airPollutionCostSavedAnnual":135.4,"airPollutionCostSavedLifetime":1625.1},{"speciesCode":"FRAX","commonName":"Common Ash","treeCount":5,"carbonSequesteredAnnualKg":233.9,"carbonSequesteredLifetimeKg":2807,"pollutionMassRemovedAnnualKg":1.23,"pollutionMassRemovedLifetimeKg":14.77,"carbonCostSavedAnnual":197,"carbonCostSavedLifetime":2363.8,"stormWaterCostSavedAnnual":221.6,"stormWaterCostSavedLifetime":2659.3,"airPollutionCostSavedAnnual":98.5,"airPollutionCostSavedLifetime":1181.9},{"speciesCode":"CABE","commonName":"Hornbeam","treeCount":4,"carbonSequesteredAnnualKg":135.4,"carbonSequesteredLifetimeKg":1625.1,"pollutionMassRemovedAnnualKg":0.86,"pollutionMassRemovedLifetimeKg":10.34,"carbonCostSavedAnnual":110.8,"carbonCostSavedLifetime":1329.6,"stormWaterCostSavedAnnual":123.1,"stormWaterCostSavedLifetime":1477.4,"airPollutionCostSavedAnnual":54.2,"airPollutionCostSavedLifetime":650},{"speciesCode":"SOAU","commonName":"Whitebeam","treeCount":2,"carbonSequesteredAnnualKg":61.6,"carbonSequesteredLifetimeKg":738.7,"pollutionMassRemovedAnnualKg":0.69,"pollutionMassRemovedLifetimeKg":8.27,"carbonCostSavedAnnual":49.2,"carbonCostSavedLifetime":590.9,"stormWaterCostSavedAnnual":54.2,"stormWaterCostSavedLifetime":650,"airPollutionCostSavedAnnual":24.6,"airPollutionCostSavedLifetime":295.5},{"speciesCode":"ILAQ","commonName":"Holly","treeCount":1,"carbonSequesteredAnnualKg":24.6,"carbonSequesteredLifetimeKg":295.5,"pollutionMassRemovedAnnualKg":0.54,"pollutionMassRemovedLifetimeKg":6.5,"carbonCostSavedAnnual":19.7,"carbonCostSavedLifetime":236.4,"stormWaterCostSavedAnnual":22.2,"stormWaterCostSavedLifetime":265.9,"airPollutionCostSavedAnnual":9.8,"airPollutionCostSavedLifetime":118.2}],"floorTypes":[{"ldsType":"Extensive Green Roof","floorCount":3,"areaSquareMeters":210,"carbonSequesteredAnnualKg":140,"runoffAvoidedAnnualM3":32,"pollutionMassRemovedAnnualKg":0.55,"oxygenProducedAnnualKg":5200,"totalGwp":900,"costSavedAnnual":520},{"ldsType":"Permeable Paving","floorCount":2,"areaSquareMeters":95,"carbonSequesteredAnnualKg":40,"runoffAvoidedAnnualM3":14,"pollutionMassRemovedAnnualKg":0.2,"oxygenProducedAnnualKg":1800,"totalGwp":380,"costSavedAnnual":190},{"ldsType":"Rain Garden","floorCount":1,"areaSquareMeters":35,"carbonSequesteredAnnualKg":30,"runoffAvoidedAnnualM3":2,"pollutionMassRemovedAnnualKg":0.15,"oxygenProducedAnnualKg":1119,"totalGwp":170,"costSavedAnnual":78}]},{"label":"Growth Timeline : 25 Years","years":25,"isPrimary":false,"totals":{"treeCount":48,"treesExcludedFromTotals":2,"carbonSequesteredAnnualKg":3669.4,"carbonSequesteredLifetimeKg":55041,"co2EquivalentAnnualKg":3669.4,"co2EquivalentLifetimeKg":55041,"runoffAvoidedAnnualM3":348.18,"runoffAvoidedLifetimeM3":5222.7,"rainfallInterceptedAnnualM3":202.06,"rainfallInterceptedLifetimeM3":3030.9,"pollutantsRemovedAnnual":{"pm25Kg":6.253,"no2Kg":4.278,"o3Kg":3.62,"so2Kg":2.007,"coKg":2.304,"totalKg":18.462},"pollutantsRemovedLifetime":{"pm25Kg":93.8,"no2Kg":64.17,"o3Kg":54.3,"so2Kg":30.11,"coKg":34.56,"totalKg":276.93},"treeCostSavedAnnual":8517,"treeCostSavedLifetime":127755,"carbonCostSavedAnnual":3225.1,"carbonCostSavedLifetime":48376.5,"stormWaterCostSavedAnnual":3685.9,"stormWaterCostSavedLifetime":55288.5,"airPollutionCostSavedAnnual":1606,"airPollutionCostSavedLifetime":24090,"floorCount":6,"floorAreaSquareMeters":340,"floorCarbonSequesteredAnnualKg":210,"floorRunoffAvoidedAnnualM3":48,"floorPollutionMassRemovedAnnualKg":0.9,"floorOxygenProducedAnnualKg":8119,"floorTotalGwp":1450,"floorCostSavedAnnual":788},"siteKpi":{"canopyCoverPercent":68,"canopyAreaSquareMeters":6121.2,"softscapeSurfaceRatioPercent":55,"perviousAreaSquareMeters":2250,"distinctSpeciesCount":9,"nativeTreeCount":31,"adaptiveTreeCount":12,"nativeSpeciesRatioPercent":68,"distinctBloomMonthsCount":7,"distinctEcologicalFunctionsCount":5,"habitatConnectivityScore":95,"lightingFixtureCount":24,"darkSkyCompliantFixtureCount":19,"lightingCompliancePercent":79.2},"bng":{"metricVersion":"The Statutory Biodiversity Metric 2024-07-23","baselineUnits":3.6,"postInterventionUnits":4.8,"netChangeUnits":1.2,"netChangePercent":33.33333333333333,"statutoryNetGainPercent":10,"meetsStatutoryNetGain":true,"isComplete":true,"retainedUnits":1.8,"enhancedUnits":1.15,"createdUnits":1.85,"lostUnits":1.2,"floorCount":14,"currentFloorCount":14,"retainedFloorCount":4,"enhancedFloorCount":2,"lostFloorCount":3,"createdFloorCount":5,"checkDataFloorCount":1,"staleFloorCount":0,"notAssessedFloorCount":0,"excludedFloorCount":0,"totalAreaHectares":0.62,"assessedAreaHectares":0.62,"byBroadHabitat":[{"name":"Grassland","floorCount":6,"areaHectares":0.21,"habitatUnits":2.1},{"name":"Heathland and shrub","floorCount":3,"areaHectares":0.09,"habitatUnits":1.2},{"name":"Urban","floorCount":1,"areaHectares":0.08,"habitatUnits":0.9},{"name":"Wetland","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}],"byDistinctiveness":[{"name":"Medium","floorCount":7,"areaHectares":0.24,"habitatUnits":2.9},{"name":"Low","floorCount":3,"areaHectares":0.14,"habitatUnits":1.3},{"name":"High","floorCount":1,"areaHectares":0.04,"habitatUnits":0.6}]},"species":[{"speciesCode":"ACPL","commonName":"Norway Maple","treeCount":12,"carbonSequesteredAnnualKg":1053.1,"carbonSequesteredLifetimeKg":15796.6,"pollutionMassRemovedAnnualKg":5.27,"pollutionMassRemovedLifetimeKg":78.98,"carbonCostSavedAnnual":855.6,"carbonCostSavedLifetime":12834.7,"stormWaterCostSavedAnnual":987.3,"stormWaterCostSavedLifetime":14809.3,"airPollutionCostSavedAnnual":427.8,"airPollutionCostSavedLifetime":6417.4},{"speciesCode":"QURO","commonName":"English Oak","treeCount":8,"carbonSequesteredAnnualKg":921.5,"carbonSequesteredLifetimeKg":13822,"pollutionMassRemovedAnnualKg":3.95,"pollutionMassRemovedLifetimeKg":59.24,"carbonCostSavedAnnual":756.9,"carbonCostSavedLifetime":11353.8,"stormWaterCostSavedAnnual":855.6,"stormWaterCostSavedLifetime":12834.7,"airPollutionCostSavedAnnual":329.1,"airPollutionCostSavedLifetime":4936.4},{"speciesCode":"BEPE","commonName":"Silver Birch","treeCount":10,"carbonSequesteredAnnualKg":625.3,"carbonSequesteredLifetimeKg":9379.2,"pollutionMassRemovedAnnualKg":2.96,"pollutionMassRemovedLifetimeKg":44.43,"carbonCostSavedAnnual":526.6,"carbonCostSavedLifetime":7898.3,"stormWaterCostSavedAnnual":592.4,"stormWaterCostSavedLifetime":8885.6,"airPollutionCostSavedAnnual":246.8,"airPollutionCostSavedLifetime":3702.3},{"speciesCode":"TICO","commonName":"Small-Leaved Lime","treeCount":6,"carbonSequesteredAnnualKg":460.7,"carbonSequesteredLifetimeKg":6911,"pollutionMassRemovedAnnualKg":1.97,"pollutionMassRemovedLifetimeKg":29.62,"carbonCostSavedAnnual":362,"carbonCostSavedLifetime":5430.1,"stormWaterCostSavedAnnual":427.8,"stormWaterCostSavedLifetime":6417.4,"airPollutionCostSavedAnnual":181,"airPollutionCostSavedLifetime":2715},{"speciesCode":"FRAX","commonName":"Common Ash","treeCount":5,"carbonSequesteredAnnualKg":312.6,"carbonSequesteredLifetimeKg":4689.6,"pollutionMassRemovedAnnualKg":1.65,"pollutionMassRemovedLifetimeKg":24.68,"carbonCostSavedAnnual":263.3,"carbonCostSavedLifetime":3949.1,"stormWaterCostSavedAnnual":296.2,"stormWaterCostSavedLifetime":4442.8,"airPollutionCostSavedAnnual":131.6,"airPollutionCostSavedLifetime":1974.6},{"speciesCode":"CABE","commonName":"Hornbeam","treeCount":4,"carbonSequesteredAnnualKg":181,"carbonSequesteredLifetimeKg":2715,"pollutionMassRemovedAnnualKg":1.15,"pollutionMassRemovedLifetimeKg":17.28,"carbonCostSavedAnnual":148.1,"carbonCostSavedLifetime":2221.4,"stormWaterCostSavedAnnual":164.5,"stormWaterCostSavedLifetime":2468.2,"airPollutionCostSavedAnnual":72.4,"airPollutionCostSavedLifetime":1086},{"speciesCode":"SOAU","commonName":"Whitebeam","treeCount":2,"carbonSequesteredAnnualKg":82.3,"carbonSequesteredLifetimeKg":1234.1,"pollutionMassRemovedAnnualKg":0.92,"pollutionMassRemovedLifetimeKg":13.82,"carbonCostSavedAnnual":65.8,"carbonCostSavedLifetime":987.3,"stormWaterCostSavedAnnual":72.4,"stormWaterCostSavedLifetime":1086,"airPollutionCostSavedAnnual":32.9,"airPollutionCostSavedLifetime":493.6},{"speciesCode":"ILAQ","commonName":"Holly","treeCount":1,"carbonSequesteredAnnualKg":32.9,"carbonSequesteredLifetimeKg":493.6,"pollutionMassRemovedAnnualKg":0.72,"pollutionMassRemovedLifetimeKg":10.86,"carbonCostSavedAnnual":26.3,"carbonCostSavedLifetime":394.9,"stormWaterCostSavedAnnual":29.6,"stormWaterCostSavedLifetime":444.3,"airPollutionCostSavedAnnual":13.2,"airPollutionCostSavedLifetime":197.5}],"floorTypes":[{"ldsType":"Extensive Green Roof","floorCount":3,"areaSquareMeters":210,"carbonSequesteredAnnualKg":140,"runoffAvoidedAnnualM3":32,"pollutionMassRemovedAnnualKg":0.55,"oxygenProducedAnnualKg":5200,"totalGwp":900,"costSavedAnnual":520},{"ldsType":"Permeable Paving","floorCount":2,"areaSquareMeters":95,"carbonSequesteredAnnualKg":40,"runoffAvoidedAnnualM3":14,"pollutionMassRemovedAnnualKg":0.2,"oxygenProducedAnnualKg":1800,"totalGwp":380,"costSavedAnnual":190},{"ldsType":"Rain Garden","floorCount":1,"areaSquareMeters":35,"carbonSequesteredAnnualKg":30,"runoffAvoidedAnnualM3":2,"pollutionMassRemovedAnnualKg":0.15,"oxygenProducedAnnualKg":1119,"totalGwp":170,"costSavedAnnual":78}]}]};
-
-  $('sampleBtn').addEventListener('click', () => applyData(SAMPLE_DATA));
+  // Fetched on demand rather than inlined: the sample is a full schema 9 export (the LIM sandbox
+  // model, its 3D scene included), too big to download with every visit. Chromium blocks fetch()
+  // of local files from a file:// origin, so a page opened as a file asks for the file to be dropped.
+  $('sampleBtn').addEventListener('click', async () => {
+    try {
+      const response = await fetch('sample-data/example-export.json');
+      if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
+      applyData(await response.json());
+    } catch (err) {
+      showError(location.protocol === 'file:'
+        ? "This page is open as a local file, which can't load the sample by itself: drop sample-data/example-export.json onto it instead."
+        : "Couldn't load the sample (" + err.message + ').');
+    }
+  });
 
   function readFile(file) {
     const reader = new FileReader();
@@ -1200,9 +1226,37 @@
     return d;
   }
 
+  // One line per design scenario (the existing site, Scheme A, Scheme B, …), all for the metric
+  // picked above and on one scale, so the schemes compare year by year. The existing site is the
+  // reference: a grey dashed line. Scheme colors come from the categorical set, skipping its green
+  // (cat-1), which the metric colors already use. A file without design options is one line in the
+  // metric's own color, as before.
+  const SCENARIO_LINE_COLORS = ['--cat-2', '--cat-3', '--cat-5', '--cat-6', '--cat-4', '--cat-8', '--cat-7'];
+
+  function growthSeries(metricKey) {
+    const metric = METRICS[metricKey];
+    const options = designOptions();
+    const groups = options.length
+      ? options.map(option => ({ name: option, entries: state.data.scenarios.filter(s => optionOf(s) === option) }))
+      : [{ name: null, entries: state.data.scenarios }];
+    let slot = 0;
+    return groups.map(({ name, entries }) => {
+      const existing = entries.some(s => s.isExistingSite);
+      return {
+        name,
+        existing,
+        color: !options.length ? metric.color
+          : existing ? 'var(--text-muted)'
+          : `var(${SCENARIO_LINE_COLORS[slot++ % SCENARIO_LINE_COLORS.length]})`,
+        points: entries.map(s => ({ key: s.label, years: s.years, xLabel: scenarioLabelOf(s), value: metric.lifetime(s.totals || {}) })),
+      };
+    });
+  }
+
   function renderGrowthCurveChart(scenarios, selectedLabel, currency) {
     const panel = $('growthCurvePanel');
-    if (scenarios.length <= 1) {
+    const series = growthSeries(state.growthMetric).filter(s => s.points.length > 0);
+    if (!series.some(s => s.points.length > 1)) {
       panel.style.display = 'none';
       return;
     }
@@ -1210,8 +1264,9 @@
 
     const metric = METRICS[state.growthMetric];
     $('growthCurveTitle').textContent = 'Growth curve — ' + metric.label;
-
-    const data = scenarioGrowthData(scenarios, selectedLabel, state.growthMetric);
+    $('growthCurveSub').textContent = series.length > 1
+      ? 'Lifetime cumulative, one line per scenario — click a point or a scenario to view it there'
+      : 'Lifetime cumulative, traced across growth stages';
 
     const width = 640, height = 250;
     // Wider side margins than the bar chart: points sit AT the left/right edges of the plot area
@@ -1220,46 +1275,71 @@
     const marginLeft = 28, marginRight = 28, marginTop = 30, marginBottom = 30;
     const plotW = width - marginLeft - marginRight;
     const plotH = height - marginTop - marginBottom;
-    const n = data.length;
-    const stepX = n > 1 ? plotW / (n - 1) : 0;
 
-    const maxV = Math.max(1e-9, ...data.map((d) => d.lifetime));
+    // Points sit at their growth year when every entry has one, so schemes line up year by year;
+    // otherwise at their position in the timeline, as before.
+    const byYear = series.every(s => s.points.every(p => p.years != null));
+    const years = byYear ? [...new Set(series.flatMap(s => s.points.map(p => p.years)))].sort((a, b) => a - b) : [];
+    const longest = series.reduce((a, s) => (s.points.length > a.points.length ? s : a), series[0]);
+    const steps = byYear ? years.length : longest.points.length;
+    const xAt = (i) => marginLeft + (steps > 1 ? (plotW * i) / (steps - 1) : plotW / 2);
+    const xFor = (p, i) => xAt(byYear ? years.indexOf(p.years) : i);
+
+    const maxV = Math.max(1e-9, ...series.flatMap(s => s.points.map(p => p.value)));
     const yFor = (v) => marginTop + plotH - (v / maxV) * plotH;
-    const points = data.map((d, i) => [marginLeft + stepX * i, yFor(d.lifetime)]);
 
-    const dots = points.map(([px, py], i) => {
-      const d = data[i];
-      return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${d.selected ? 5 : 4}" fill="${metric.color}" stroke="var(--surface-2)" stroke-width="2"/>`;
+    const selected = series.flatMap(s => s.points.map((p, i) => ({ s, p, i }))).find(x => x.p.key === selectedLabel);
+    const current = selected ? selected.s : series[0];
+    const atSelectedYear = (s) => (selected && byYear ? s.points.find(p => p.years === selected.p.years) : null) || s.points[s.points.length - 1];
+
+    // The current scenario last, so it's drawn on top.
+    const ordered = [...series.filter(s => s !== current), current];
+    const lines = ordered.map(s => {
+      const pts = s.points.map((p, i) => [xFor(p, i), yFor(p.value)]);
+      const isCurrent = s === current;
+      return `<path d="${smoothPath(pts)}" fill="none" stroke="${s.color}" stroke-width="${isCurrent ? 3 : 2}"${s.existing ? ' stroke-dasharray="6 5"' : ''}
+          stroke-linecap="round" stroke-linejoin="round" opacity="${isCurrent ? 1 : 0.8}"/>` +
+        s.points.map((p, i) => {
+          const isSelected = selected && p.key === selected.p.key;
+          const tip = `${s.name ? escapeAttr(s.name) + ' · ' : ''}${escapeAttr(p.xLabel)} — Lifetime: ${escapeAttr(formatMetricValue(metric, p.value, currency))}`;
+          const [px, py] = [xFor(p, i), yFor(p.value)];
+          return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${isSelected ? 5 : 3.5}" fill="${s.color}" stroke="var(--surface-2)" stroke-width="2"/>
+            <circle class="growth-hit" data-scenario="${escapeAttr(p.key)}" data-tip="${tip}" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="10" fill="transparent" style="cursor:pointer;"/>`;
+        }).join('');
     }).join('');
 
-    const hitAreas = data.map((d, i) => {
-      const cx = marginLeft + stepX * i;
-      const tip = `${escapeAttr(d.xLabel)} — Lifetime: ${escapeAttr(formatMetricValue(metric, d.lifetime, currency))}`;
-      return `<rect class="growth-hit" data-scenario="${escapeAttr(d.key)}" data-tip="${tip}"
-        x="${(cx - (stepX || plotW) / 2).toFixed(1)}" y="${marginTop}" width="${(stepX || plotW).toFixed(1)}" height="${plotH}" fill="transparent" style="cursor:pointer;"/>`;
+    const axisLabels = (byYear ? years.map(y => `${y} yr`) : longest.points.map(p => p.xLabel)).map((text, i) => {
+      const isSelected = selected && (byYear ? selected.p.years === years[i] : selected.i === i);
+      return `<text x="${xAt(i).toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
+        fill="${isSelected ? 'var(--text-primary)' : 'var(--text-muted)'}"
+        style="font-size:12px;font-weight:${isSelected ? 700 : 500};">${escapeAttr(text)}</text>`;
     }).join('');
 
-    const labels = data.map((d, i) => `
-      <text x="${(marginLeft + stepX * i).toFixed(1)}" y="${(marginTop + plotH + 20).toFixed(1)}" text-anchor="middle"
-        fill="${d.selected ? 'var(--text-primary)' : 'var(--text-muted)'}"
-        style="font-size:12px;font-weight:${d.selected ? 700 : 500};">${escapeAttr(d.xLabel)}</text>`).join('');
+    const guide = selected
+      ? `<line x1="${xFor(selected.p, selected.i).toFixed(1)}" y1="${marginTop}" x2="${xFor(selected.p, selected.i).toFixed(1)}" y2="${marginTop + plotH}"
+          stroke="var(--baseline)" stroke-width="1" stroke-dasharray="3 4"/>
+        <text x="${xFor(selected.p, selected.i).toFixed(1)}" y="${(yFor(selected.p.value) - 12).toFixed(1)}" text-anchor="middle" fill="var(--text-primary)"
+          style="font-size:12px;font-weight:700;">${formatMetricValue(metric, selected.p.value, currency)}</text>`
+      : '';
 
-    const valueLabels = data.map((d, i) => {
-      if (!d.selected) return '';
-      const [px, py] = points[i];
-      return `<text x="${px.toFixed(1)}" y="${(py - 12).toFixed(1)}" text-anchor="middle" fill="var(--text-primary)" style="font-size:12px;font-weight:700;">${formatMetricValue(metric, d.lifetime, currency)}</text>`;
-    }).join('');
+    // Each scenario's value at the year being viewed: click one to view it there.
+    const legend = series.length > 1
+      ? `<div class="growth-legend">${series.map(s => {
+          const p = atSelectedYear(s);
+          return `<button type="button" class="${s === current ? 'current' : ''}" data-scenario="${escapeAttr(p.key)}" title="View ${escapeAttr(s.name)} at ${escapeAttr(p.xLabel)}">
+            <span class="swatch${s.existing ? ' dashed' : ''}" style="border-color:${s.color}"></span>${escapeAttr(s.name)}
+            <span class="v">${formatMetricValue(metric, p.value, currency)}</span></button>`;
+        }).join('')}</div>`
+      : '';
 
     const host = $('growthCurveHost');
     host.innerHTML = `
       <svg class="growth-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
         <line x1="${marginLeft}" y1="${marginTop + plotH}" x2="${width - marginRight}" y2="${marginTop + plotH}" stroke="var(--baseline)" stroke-width="1"/>
-        <path d="${smoothPath(points)}" fill="none" stroke="${metric.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        ${dots}
-        ${valueLabels}
-        ${labels}
-        ${hitAreas}
-      </svg>`;
+        ${guide}
+        ${lines}
+        ${axisLabels}
+      </svg>${legend}`;
     bindGrowthInteractions(host, '.growth-hit');
   }
 
@@ -1556,11 +1636,13 @@
         <div class="val">${fixed(r.v, 2)} kg</div>
       </div>`).join('');
 
-    const table = $('pollutantTable');
-    table.innerHTML = `
-      <thead><tr><th>Pollutant</th><th class="num">Mass removed (kg)</th></tr></thead>
-      <tbody>${rows.map(r => `<tr><td><span class="species-dot" style="background:${r.color}"></span>${r.label}</td>
-        <td class="num">${fixed(r.v, 2)}</td></tr>`).join('')}</tbody>`;
+    const total = rows.reduce((s, r) => s + Math.max(0, r.v), 0);
+    renderLaneTable($('pollutantTable'), 'Pollutant', [
+      { head: 'Removed', unit: 'kg' + (state.period === 'annual' ? '/yr' : ' lifetime') }, { head: 'Share', unit: '%' },
+    ], [
+      { name: 'Air quality', color: 'blue', from: 0, to: 1 },
+    ], rows.map(r => ({ key: r.label, name: r.label, swatch: `<span class="species-dot" style="background:${r.color}"></span>`,
+      values: [fixed(r.v, 2), total > 0 ? fixed((Math.max(0, r.v) / total) * 100, 0) : '—'] })), { interactive: false, minWidth: 320 });
 
     renderPollutantPie(rows);
   }
@@ -1654,13 +1736,21 @@
         <div class="val">${fixed(r.carbon, 0)} kg</div>
       </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">No species data in this export.</p>';
 
-    const table = $('speciesTable');
-    table.innerHTML = `
-      <thead><tr><th>Species</th><th class="num">Trees</th><th class="num">Carbon (kg)</th>
-        <th class="num">Pollutants (kg)</th><th class="num">Cost saved</th></tr></thead>
-      <tbody>${rows.map((r) => `<tr><td><span class="species-dot" style="background:${r.color}"></span>${escapeAttr(r.name)}</td><td class="num">${fixed(r.trees, 0)}</td>
-        <td class="num">${fixed(r.carbon, 1)}</td><td class="num">${fixed(r.pollution, 2)}</td>
-        <td class="num">${money(r.cost, currency)}</td></tr>`).join('')}</tbody>`;
+    const per = isAnnual ? '/yr' : ' lifetime';
+    if (rows.length) {
+      renderLaneTable($('speciesTable'), 'Species', [
+        { head: 'Trees', unit: 'count' },
+        { head: 'Carbon', unit: 'kg' + per }, { head: 'Pollutants', unit: 'kg' + per },
+        { head: 'Cost saved', unit: currencySymbol(currency) + per },
+      ], [
+        { name: 'Planting', color: 'green', from: 0, to: 0 },
+        { name: 'Benefits', color: 'blue', from: 1, to: 2 },
+        { name: 'Value', color: 'amber', from: 3, to: 3 },
+      ], rows.map(r => ({ key: r.code, name: r.name, swatch: `<span class="species-dot" style="background:${r.color}"></span>`,
+        values: [fixed(r.trees, 0), fixed(r.carbon, 1), fixed(r.pollution, 2), fixed(r.cost, 0)] })), { interactive: false, minWidth: 420 });
+    } else {
+      $('speciesTable').innerHTML = '<div class="board-empty">No species data in this export.</div>';
+    }
 
     renderSpeciesPie(top, rows);
     renderTopTreeHighlight(rows[0], currency);
@@ -1959,20 +2049,29 @@
 
   // ---------------- Floor types ----------------
   function renderFloorTable(floors, currency) {
-    const table = $('floorTable');
+    const host = $('floorTable');
     if (!floors.length) {
-      table.innerHTML = '<tbody><tr><td style="color:var(--text-muted);">No floor / softscape data in this export.</td></tr></tbody>';
+      host.innerHTML = '<div class="board-empty">No floor / softscape data in this export.</div>';
       return;
     }
     const hasUpkeep = floors.some(f => f.maintenanceCostAnnual != null);
-    table.innerHTML = `
-      <thead><tr><th>LDS type</th><th class="num">Floors</th><th class="num">Area (m²)</th>
-        <th class="num">Carbon (kg/yr)</th><th class="num">Run-off avoided (m³/yr)</th>
-        <th class="num">O₂ produced (kg/yr)</th><th class="num">Cost saved (/yr)</th>${hasUpkeep ? '<th class="num">Maintenance (/yr)</th>' : ''}</tr></thead>
-      <tbody>${floors.map(f => `<tr><td>${escapeAttr(f.ldsType)}</td><td class="num">${fixed(f.floorCount, 0)}</td>
-        <td class="num">${fixed(f.areaSquareMeters, 1)}</td><td class="num">${fixed(f.carbonSequesteredAnnualKg, 1)}</td>
-        <td class="num">${fixed(f.runoffAvoidedAnnualM3, 1)}</td><td class="num">${fixed(f.oxygenProducedAnnualKg, 1)}</td>
-        <td class="num">${money(f.costSavedAnnual, currency)}</td>${hasUpkeep ? `<td class="num">${money(f.maintenanceCostAnnual ?? 0, currency)}</td>` : ''}</tr>`).join('')}</tbody>`;
+    const symbol = currencySymbol(currency);
+    const columns = [
+      { head: 'Floors', unit: 'count' }, { head: 'Area', unit: 'm²' },
+      { head: 'Carbon', unit: 'kg/yr' }, { head: 'Run-off', unit: 'm³/yr' }, { head: 'O₂ produced', unit: 'kg/yr' },
+      { head: 'Cost saved', unit: symbol + '/yr' },
+      ...(hasUpkeep ? [{ head: 'Maintenance', unit: symbol + '/yr' }] : []),
+    ];
+    // The landscape type's swatch is the color it has in the 3D site.
+    const swatch = (f) => `<span class="floor-swatch" style="background:${hexCss(floorColor(f))}"></span>`;
+    renderLaneTable(host, 'Landscape type', columns, [
+      { name: 'Area', color: 'green', from: 0, to: 1 },
+      { name: 'Benefits', color: 'blue', from: 2, to: 4 },
+      { name: 'Value', color: 'amber', from: 5, to: columns.length - 1 },
+    ], floors.map(f => ({ key: f.ldsType || 'Unassigned', name: f.ldsType || 'Unassigned', swatch: swatch(f),
+      values: [fixed(f.floorCount ?? 0, 0), fixed(f.areaSquareMeters ?? 0, 0), fixed(f.carbonSequesteredAnnualKg ?? 0, 1),
+        fixed(f.runoffAvoidedAnnualM3 ?? 0, 1), fixed(f.oxygenProducedAnnualKg ?? 0, 1), fixed(f.costSavedAnnual ?? 0, 0),
+        ...(hasUpkeep ? [fixed(f.maintenanceCostAnnual ?? 0, 0)] : [])] })), { interactive: false });
   }
 
   // ---------------- 3D site and result board (schema 9) ----------------
@@ -2068,8 +2167,15 @@
    * grouped by `lanes` ({ name, color, from, to }: 0-based value columns). Every cell names its
    * grid row and column, so the lanes can span the header and all rows behind them.
    */
-  function renderLaneTable(host, nameHead, columns, lanes, rows) {
+  /**
+   * A table in the LIM table language. `interactive` rows are buttons (the result board's filters);
+   * the page's other tables pass false. `minWidth` (px) suits a table with only a column or two.
+   */
+  function renderLaneTable(host, nameHead, columns, lanes, rows, { interactive = true, minWidth = null } = {}) {
     host.style.gridTemplateColumns = `minmax(150px, 1.7fr) repeat(${columns.length}, minmax(64px, 1fr))`;
+    if (minWidth != null) host.style.minWidth = minWidth + 'px';
+    host.classList.toggle('static', !interactive);
+    const nameCell = interactive ? ' tabindex="0" role="button" aria-pressed="false"' : '';
     const span = rows.length + 2;
     const at = (row, col) => `grid-row:${row};grid-column:${col}`;
     let html = lanes.map(l => `<div class="lane ${l.color}" style="grid-row:1 / span ${span};grid-column:${l.from + 2} / ${l.to + 3}"></div>`).join('');
@@ -2077,7 +2183,7 @@
     html += `<div class="lt-head" style="${at(2, 1)}">${escapeAttr(nameHead)}</div>`;
     html += columns.map((c, i) => `<div class="lt-head num" style="${at(2, i + 2)}">${escapeAttr(c.head)}<span class="u">${escapeAttr(c.unit)}</span></div>`).join('');
     html += rows.map((r, n) => `<div class="lt-row${r.muted ? ' muted' : ''}" data-key="${escapeAttr(r.key)}">` +
-      `<div class="lt-cell name" style="${at(n + 3, 1)}" tabindex="0" role="button" aria-pressed="false" title="${escapeAttr(r.name)}">` +
+      `<div class="lt-cell name" style="${at(n + 3, 1)}"${nameCell} title="${escapeAttr(r.name)}">` +
       `${r.swatch}<span class="t">${escapeAttr(r.name)}</span></div>` +
       r.values.map((v, i) => `<div class="lt-cell num" style="${at(n + 3, i + 2)}">${v}</div>`).join('') + '</div>').join('');
     host.innerHTML = html;
@@ -2241,7 +2347,10 @@
     card.classList.add('show');
   }
   function hideSiteCard() { $('site3dCard').classList.remove('show'); }
-  $('site3dCard').addEventListener('click', (e) => { if (e.target.closest('.close')) hideSiteCard(); });
+  $('site3dCard').addEventListener('click', (e) => {
+    if (!e.target.closest('.close')) return;
+    if (site.viewer) site.viewer.clearPick(); else hideSiteCard();
+  });
 
   // Theme switches change the page colors the 3D borrows (background, species).
   $('themeToggle').addEventListener('click', () => { if (site.viewer) site.viewer.recolor(); });
@@ -2304,12 +2413,98 @@
     let shown = [];
     let box = new THREE.Box3();
 
+    // Highlight: the element under the pointer (live) and the one clicked, kept until another
+    // click, a click on empty ground, the card's × or Esc, so it's clear what the card describes.
+    // A clicked tree also gets a ring on the ground (at site scale a tree is a few pixels across),
+    // a clicked planting area an outline, holes included.
+    const HOVER_COLOR = new THREE.Color(0xffd166), PICK_COLOR = new THREE.Color(0xff8a00);
+    const marker = new THREE.Mesh(new THREE.RingGeometry(0.75, 1, 48).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: PICK_COLOR, side: THREE.DoubleSide, depthTest: false, transparent: true }));
+    const outline = new THREE.LineSegments(new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: PICK_COLOR, depthTest: false, transparent: true }));
+    marker.renderOrder = outline.renderOrder = 10;
+    marker.visible = outline.visible = false;
+    scene3.add(marker, outline);
+    let hovered = null, picked = null; // { kind: 'tree' | 'floor', index } into the scene's trees or floors
+    let instanceOf = new Map();        // a shown tree's index -> its instance
+    let baseColors = new Map();        // species key -> its crown color
+    let painted = [];
+    let markerRadius = 1;
+    const highlightToggle = $('site3dHighlight');
+    try { highlightToggle.checked = localStorage.getItem('lim.site3d.highlight') !== 'off'; } catch { /* keep the default */ }
+
     // Scene positions are Revit's axes (X east, Y north, Z up); three.js has y up.
     const toThree = (x, y, z) => new THREE.Vector3(x, z, -y);
-    const render = () => renderer.render(scene3, camera);
+    const render = () => { scaleMarker(); renderer.render(scene3, camera); };
     controls.addEventListener('change', render);
 
+    const isShown = (el) => el.kind === 'tree' ? instanceOf.has(el.index) : !!(floorMeshes[el.index] && floorMeshes[el.index].visible);
+    const sameElement = (a, b) => a === b || !!(a && b && a.kind === b.kind && a.index === b.index);
+
+    function unpaint() {
+      for (const el of painted) {
+        if (el.kind === 'floor') {
+          if (floorMeshes[el.index]) floorMeshes[el.index].material.emissive.setHex(0x000000);
+        } else if (built && instanceOf.has(el.index)) {
+          crowns.setColorAt(instanceOf.get(el.index), new THREE.Color(baseColors.get(treeKey(built.trees[el.index]))));
+        }
+      }
+      painted = [];
+      marker.visible = outline.visible = false;
+    }
+
+    function paint() {
+      unpaint();
+      if (highlightToggle.checked) {
+        // The clicked element last, so its color wins when the pointer is over it too.
+        for (const [el, color] of [[hovered, HOVER_COLOR], [picked, PICK_COLOR]]) {
+          if (!el || !isShown(el)) continue;
+          if (el.kind === 'tree') crowns.setColorAt(instanceOf.get(el.index), color);
+          else floorMeshes[el.index].material.emissive.copy(color).multiplyScalar(0.5);
+          painted.push(el);
+        }
+        if (picked && isShown(picked)) placeMarker(picked);
+      }
+      if (crowns && crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
+      render();
+    }
+
+    function placeMarker(el) {
+      if (el.kind === 'tree') {
+        const { scene, scenario } = site.current;
+        const t = scene.trees[el.index];
+        marker.position.copy(toThree(...t.xyz)).y += 0.1;
+        markerRadius = Math.max(sceneTreeSize(scene, t, scenario)[2] * 1.4, 1);
+        marker.visible = true;
+      } else {
+        outline.geometry.dispose();
+        outline.geometry = new THREE.EdgesGeometry(floorMeshes[el.index].geometry, 1);
+        outline.visible = true;
+      }
+    }
+
+    // Keeps the ring readable when zoomed out: never under 1.5% of the distance to it.
+    function scaleMarker() {
+      if (!marker.visible) return;
+      const r = Math.max(markerRadius, camera.position.distanceTo(marker.position) * 0.015);
+      marker.scale.set(r, r, r);
+    }
+
+    function clearPick() {
+      picked = null;
+      hideSiteCard();
+      paint();
+    }
+
+    highlightToggle.addEventListener('change', () => {
+      try { localStorage.setItem('lim.site3d.highlight', highlightToggle.checked ? 'on' : 'off'); } catch { /* not remembered */ }
+      if (!highlightToggle.checked) hovered = null;
+      paint();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && picked) clearPick(); });
+
     function build(scene) {
+      hovered = picked = null;
       floorMeshes.forEach(mesh => { if (mesh) { scene3.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); } });
       if (trunks) { scene3.remove(trunks, crowns); trunks.dispose(); crowns.dispose(); }
       box = new THREE.Box3();
@@ -2360,6 +2555,7 @@
     }
 
     function show(cur) {
+      unpaint();
       if (cur.scene !== built) build(cur.scene);
       const { scene, scenario, treeIdx, floorIdx } = cur;
       const inEntry = new Set(floorIdx);
@@ -2389,45 +2585,84 @@
       if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
       trunks.computeBoundingSphere();
       crowns.computeBoundingSphere();
+      instanceOf = new Map(shown.map((i, n) => [i, n]));
+      baseColors = colors;
       scene3.background = new THREE.Color(resolveColor('var(--surface-1)'));
       const filtered = site.speciesSel.size > 0 || site.floorSel.size > 0;
       $('site3dOverlay').innerHTML = `<span>${fixed(shown.length, 0)} trees · ${fixed(floorsShown, 0)} planting areas` +
         `${scenario.years != null ? ' · ' + fixed(scenario.years, 0) + ' years' : ''}${filtered ? ' · filtered' : ''}</span>`;
-      render();
+      // A clicked element stays picked across scenarios and years while it's shown, its card
+      // updated to this year's size; one filtered out or not in this scenario is let go.
+      if (hovered && !isShown(hovered)) hovered = null;
+      if (picked && !isShown(picked)) { picked = null; hideSiteCard(); }
+      else if (picked) showSiteCard(describe(picked));
+      paint();
     }
 
-    // Click (not drag) to see an element's details and its row in the board.
+    // Hover to highlight, click (not drag) to pick: its details, its row in the board, and it
+    // stays highlighted.
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    let down = null;
-    renderer.domElement.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
-    renderer.domElement.addEventListener('click', (e) => {
-      if (!site.current || (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5)) return;
+
+    function elementAt(e) {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects([crowns, trunks, ...floorMeshes.filter(m => m && m.visible)], false)[0];
-      if (!hit) { hideSiteCard(); return; }
+      if (!hit) return null;
+      if ((hit.object === crowns || hit.object === trunks) && hit.instanceId != null) return { kind: 'tree', index: shown[hit.instanceId] };
+      return hit.object.userData.index != null ? { kind: 'floor', index: hit.object.userData.index } : null;
+    }
+
+    function describe(el) {
       const { scene, scenario } = site.current;
       const option = (o) => escapeAttr(o || 'Main model');
-      if ((hit.object === crowns || hit.object === trunks) && hit.instanceId != null) {
-        const t = scene.trees[shown[hit.instanceId]];
+      if (el.kind === 'tree') {
+        const t = scene.trees[el.index];
         const [trunkH, crownH, crownR] = sceneTreeSize(scene, t, scenario);
-        showSiteCard(`<b>${escapeAttr(t.commonName || treeKey(t))}</b>` +
+        return `<b>${escapeAttr(t.commonName || treeKey(t))}</b>` +
           `<span class="k">Type</span> ${escapeAttr(t.type || '—')}<br>` +
           `<span class="k">Height</span> ${fixed(trunkH + crownH, 1)} m · <span class="k">crown</span> ⌀ ${fixed(crownR * 2, 1)} m<br>` +
           `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[t.phaseRole] || t.phaseRole || '—')}<br>` +
-          `<span class="k">Option</span> ${option(t.designOption)}`);
-        flashBoardRow('tree', treeKey(t));
-      } else {
-        const f = scene.floors[hit.object.userData.index];
-        showSiteCard(`<b>${escapeAttr(floorKey(f))}</b>` +
-          `<span class="k">Type</span> ${escapeAttr(f.type || '—')}<br>` +
-          `<span class="k">Area</span> ${fixed(f.areaM2, 0)} m²${f.holes ? ` · ${fixed(f.holes, 0)} hole${f.holes === 1 ? '' : 's'}` : ''}<br>` +
-          `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[f.phaseRole] || f.phaseRole || '—')}<br>` +
-          `<span class="k">Option</span> ${option(f.designOption)}`);
-        flashBoardRow('floor', floorKey(f));
+          `<span class="k">Option</span> ${option(t.designOption)}`;
       }
+      const f = scene.floors[el.index];
+      return `<b>${escapeAttr(floorKey(f))}</b>` +
+        `<span class="k">Type</span> ${escapeAttr(f.type || '—')}<br>` +
+        `<span class="k">Area</span> ${fixed(f.areaM2, 0)} m²${f.holes ? ` · ${fixed(f.holes, 0)} hole${f.holes === 1 ? '' : 's'}` : ''}<br>` +
+        `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[f.phaseRole] || f.phaseRole || '—')}<br>` +
+        `<span class="k">Option</span> ${option(f.designOption)}`;
+    }
+
+    let hoverFrame = 0, lastMove = null;
+    renderer.domElement.addEventListener('pointermove', (e) => {
+      if (e.buttons || !highlightToggle.checked || !site.current) return; // not while dragging the view
+      lastMove = e;
+      if (hoverFrame) return;
+      hoverFrame = requestAnimationFrame(() => {
+        hoverFrame = 0;
+        const el = elementAt(lastMove);
+        renderer.domElement.style.cursor = el ? 'pointer' : '';
+        if (!sameElement(el, hovered)) { hovered = el; paint(); }
+      });
+    });
+    renderer.domElement.addEventListener('pointerleave', () => {
+      renderer.domElement.style.cursor = '';
+      if (hovered) { hovered = null; paint(); }
+    });
+
+    let down = null;
+    renderer.domElement.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
+    renderer.domElement.addEventListener('click', (e) => {
+      if (!site.current || (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5)) return;
+      const el = elementAt(e);
+      if (!el) { clearPick(); return; }
+      picked = el;
+      paint();
+      showSiteCard(describe(el));
+      const { scene } = site.current;
+      if (el.kind === 'tree') flashBoardRow('tree', treeKey(scene.trees[el.index]));
+      else flashBoardRow('floor', floorKey(scene.floors[el.index]));
     });
 
     function resize() {
@@ -2441,7 +2676,7 @@
     new ResizeObserver(resize).observe(host);
     resize();
 
-    return { show, frame, recolor: () => { if (site.current) show(site.current); } };
+    return { show, frame, clearPick, recolor: () => { if (site.current) show(site.current); } };
   }
 
 })();

@@ -20,11 +20,17 @@ cost-savings donut, the species-composition donut, per-species colors shared
 across the species bar/pie/table views, and per-pollutant colors shared
 across the air-pollutants bar/pie/table views — plus ratio meters for
 canopy/softscape/native/lighting stats and a floor/softscape breakdown table.
+Every data table uses the desktop Dashboard's table language: columns that
+belong together sit in a pale swim lane named in capitals above them, each
+header is its name over its unit, and the cells hold plain right-aligned numbers.
 Near the bottom, a
 **growth-year selector** (for projects that model the same planted layout at
 different tree ages via Revit design options, e.g. 5/10/15/20/25 years) sits
 beside the translation cards — click any card to drive the growth bar/curve
-charts by that metric.
+charts by that metric. With design scenarios, the growth curve draws every
+scenario on one chart (the existing site as a grey dashed reference), with each
+scenario's value at the year being viewed underneath; click a point or a
+scenario to view it there.
 
 No backend, no build step, no signup — open `index.html` in a browser (or
 host it on GitHub Pages) and drop in a JSON file. Parsing happens entirely in
@@ -56,8 +62,13 @@ is sent anywhere (see "3D site" below).
    beside it to show only those species or landscape types; **Show all**
    clears the selection.
 
-Don't have an export handy? Click **Load sample data** to preview the layout
-with the bundled example (`sample-data/example-export.json`).
+Don't have an export handy? Click **Load sample data** to preview the page with
+the bundled example (`sample-data/example-export.json`): a schema 9 export of
+the LIM sandbox model (LAN_LIM Arboris_EWR Sandbox) with its 3D scene, made on
+2026-10-25 by the export code of LandscapeDataManager v1.7.0. It is 1.3 MB, so
+the page fetches it when the button is clicked rather than carrying it inline;
+that works on GitHub Pages or any web server, but a page opened as a local file
+can't fetch it, so drop the file onto the page instead.
 
 ## What's in the export
 
@@ -185,7 +196,13 @@ panel says so and its tables still work; without WebGL likewise.
   are annual only). Click rows to show only those species or types in the 3D
   (each table filters its own kind; nothing selected shows everything); click
   an element in the 3D to see its details and its row. Species keep the colors
-  they have in the charts above.
+  they have in the charts above, the same in every scenario and year.
+- **Highlight.** With the panel's **Highlight** switch on (the default,
+  remembered in the browser), the tree or planting area under the pointer
+  lights up, and the one you click stays highlighted — an orange crown and a
+  ring on the ground for a tree, an orange tint and outline for a planting area
+  — while you change scenario or year, its card following its size. Click empty
+  ground, the card's ×, or press Esc to let it go.
 
 ## Region map
 

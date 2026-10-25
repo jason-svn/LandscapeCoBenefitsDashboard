@@ -64,8 +64,10 @@ is sent anywhere (see "3D site" below).
 
 Don't have an export handy? Click **Load sample data** to preview the page with
 the bundled example (`sample-data/example-export.json`): a schema 9 export of
-the LIM sandbox model (LAN_LIM Arboris_EWR Sandbox) with its 3D scene, made on
-2026-10-25 by the export code of LandscapeDataManager v1.7.0. It is 1.3 MB, so
+the LIM sandbox model (LAN_LIM Arboris_EWR Sandbox) with its 3D scene — three
+schemes (A, B and C, each with the whole existing site, retained or demolished)
+and the existing site — made on 2026-10-25 by the export code of
+LandscapeDataManager v1.7.0. It is 1.6 MB, so
 the page fetches it when the button is clicked rather than carrying it inline;
 that works on GitHub Pages or any web server, but a page opened as a local file
 can't fetch it, so drop the file onto the page instead.

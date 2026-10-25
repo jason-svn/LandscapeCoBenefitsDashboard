@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Landscape Co-Benefits Dashboard</title>
+<!-- three.js for the 3D site panel, fetched from jsDelivr only when an export carries a scene. -->
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
 <style>
   :root {
     color-scheme: light;
@@ -35,6 +42,10 @@
        segments apart. Fixed order/roles, not cycled arbitrarily. */
     --cat-1: #8cae8a; --cat-2: #7fa2c9; --cat-3: #d99b77; --cat-4: #d3b566;
     --cat-5: #b491b0; --cat-6: #74ada4; --cat-7: #b3a184; --cat-8: #cf8b96;
+    /* Swim-lane washes and their label inks: the desktop app's LimLane* brushes (SharedUI/Styles.xaml). */
+    --lane-green: rgba(23,107,43,0.086); --lane-blue: rgba(47,111,176,0.086);
+    --lane-amber: rgba(163,106,0,0.10); --lane-grey: rgba(88,99,89,0.07);
+    --lane-green-ink: #176b2b; --lane-blue-ink: #2f6fb0; --lane-amber-ink: #a36a00; --lane-grey-ink: #586359;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -50,6 +61,9 @@
       --inactive: #454f43;
       --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
       --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
+      --lane-green: rgba(48,154,69,0.20); --lane-blue: rgba(62,134,204,0.20);
+      --lane-amber: rgba(201,138,0,0.20); --lane-grey: rgba(180,194,183,0.12);
+      --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-grey-ink: #b4c2b7;
     }
   }
   :root[data-theme="dark"] {
@@ -65,6 +79,9 @@
     --inactive: #454f43;
     --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
     --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
+    --lane-green: rgba(48,154,69,0.20); --lane-blue: rgba(62,134,204,0.20);
+    --lane-amber: rgba(201,138,0,0.20); --lane-grey: rgba(180,194,183,0.12);
+    --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-grey-ink: #b4c2b7;
   }
 
   * { box-sizing: border-box; }
@@ -294,6 +311,68 @@
   table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .table-scroll { overflow-x: auto; }
 
+  /* --- 3D site and its result board (schema 9 exports with a "scene") --- */
+  .site3d-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 980px) { .site3d-grid { grid-template-columns: 1fr; } }
+  .site3d-view { position: relative; height: 560px; border-radius: 10px; overflow: hidden; background: var(--surface-1); border: 1px solid var(--border); }
+  @media (max-width: 980px) { .site3d-view { height: 420px; } }
+  @media (max-width: 520px) { .site3d-view { height: 330px; } }
+  .site3d-view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .site3d-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 24px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+  .site3d-reset { position: absolute; right: 10px; top: 10px; font-size: 12px; padding: 6px 10px; }
+  .site3d-overlay { position: absolute; left: 10px; bottom: 10px; right: 10px; font-size: 11px; color: var(--text-muted); pointer-events: none; }
+  .site3d-overlay span { background: color-mix(in srgb, var(--surface-2) 88%, transparent); border-radius: 6px; padding: 3px 8px; }
+  .site3d-card { position: absolute; left: 10px; top: 10px; max-width: min(270px, calc(100% - 120px)); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 28px 10px 12px; font-size: 12px; line-height: 1.55;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.10); display: none; }
+  .site3d-card.show { display: block; }
+  .site3d-card b { font-size: 13px; display: block; margin-bottom: 2px; }
+  .site3d-card .k { color: var(--text-muted); }
+  .site3d-card .close { position: absolute; right: 4px; top: 2px; border: none; background: transparent; cursor: pointer;
+    color: var(--text-muted); font-size: 16px; line-height: 1; padding: 4px 6px; }
+  .site3d-board { max-height: 560px; overflow: auto; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 980px) { .site3d-board { max-height: none; } }
+  .board-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .board-head h4 { margin: 0; font-size: 13px; }
+  .board-head .sel { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+  .board-reset { font: inherit; font-size: 12px; font-weight: 600; color: var(--brand-700); background: none; border: none; cursor: pointer; padding: 2px 4px; }
+  .board-reset[hidden] { display: none; }
+  .board-empty { font-size: 13px; color: var(--text-muted); padding: 8px 0; }
+
+  /* Swim-lane tables, the desktop app's table language: columns that belong together sit in a lane,
+     a pale rounded wash behind the header and every row, with the lane's name in capitals above it;
+     each header is its name over its unit, bottom-aligned, so the cells hold plain right-aligned
+     numbers. Rows are display:contents so a row's cells share hover and selection. */
+  .lane-scroll { overflow-x: auto; }
+  .lane-table { display: grid; position: relative; isolation: isolate; font-size: 13px; min-width: 500px; }
+  .lane-table .lane { border-radius: 10px; margin: 0 3px; z-index: -1; }
+  .lane-table .lane.green { background: var(--lane-green); }
+  .lane-table .lane.blue { background: var(--lane-blue); }
+  .lane-table .lane.amber { background: var(--lane-amber); }
+  .lt-group { grid-row: 1; text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 9px 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lt-group.green { color: var(--lane-green-ink); }
+  .lt-group.blue { color: var(--lane-blue-ink); }
+  .lt-group.amber { color: var(--lane-amber-ink); }
+  .lt-head { grid-row: 2; align-self: end; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; line-height: 15px;
+    color: var(--lane-grey-ink); padding: 5px 10px 8px; }
+  .lt-head .u { display: block; font-weight: 500; opacity: 0.8; white-space: nowrap; }
+  .lt-head.num, .lt-cell.num { text-align: right; }
+  .lt-row { display: contents; cursor: pointer; }
+  .lt-cell { padding: 7px 10px; border-top: 1px solid var(--gridline); font-variant-numeric: tabular-nums; white-space: nowrap;
+    transition: background 0.1s ease, opacity 0.1s ease; }
+  .lt-cell.name { display: flex; align-items: center; min-width: 0; overflow: hidden; }
+  .lt-cell.name .t { overflow: hidden; text-overflow: ellipsis; }
+  .lt-cell.name:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; border-radius: 4px; }
+  .lt-row:hover .lt-cell { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+  .lt-row.selected .lt-cell { background: color-mix(in srgb, var(--brand-500) 16%, transparent); }
+  .lt-row.selected .lt-cell.name { font-weight: 600; }
+  .lane-table.has-selection .lt-row:not(.selected) .lt-cell { opacity: 0.45; }
+  .lt-row.flash .lt-cell { background: color-mix(in srgb, var(--gold) 32%, transparent); opacity: 1; }
+  .lt-row.muted .lt-cell { color: var(--text-muted); }
+  .floor-swatch { width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; flex: none; }
+
   /* Growth-year slicer: a stepped range input with labelled, clickable stops under it */
   .year-slicer { display: flex; align-items: center; gap: 10px; background: var(--surface-1); border-radius: 8px; padding: 6px 12px 4px; }
   .slicer-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
@@ -384,6 +463,41 @@
         </div>
       </div>
       <div class="upkeep-grid" id="upkeepGrid"></div>
+    </div>
+
+    <div class="panel" id="site3dPanel" style="margin-bottom:14px; display:none;">
+      <div class="panel-head">
+        <div>
+          <h3>3D site</h3>
+          <div class="panel-sub" id="site3dSub">Trees and planting areas in this scenario</div>
+        </div>
+      </div>
+      <div class="site3d-grid">
+        <div class="site3d-view" id="site3dView">
+          <div class="site3d-status" id="site3dStatus">Loading the 3D view…</div>
+          <div class="site3d-card" id="site3dCard" role="status" aria-live="polite"></div>
+          <button class="btn site3d-reset" id="site3dReset" type="button">Reset view</button>
+          <div class="site3d-overlay" id="site3dOverlay"></div>
+        </div>
+        <div class="site3d-board">
+          <section>
+            <div class="board-head">
+              <h4>Trees by species</h4>
+              <span class="sel" id="treeBoardSel"></span>
+              <button type="button" class="board-reset" id="treeBoardReset" hidden>Show all</button>
+            </div>
+            <div class="lane-scroll"><div class="lane-table" id="treeBoard" data-kind="tree"></div></div>
+          </section>
+          <section>
+            <div class="board-head">
+              <h4>Planting areas by landscape type</h4>
+              <span class="sel" id="floorBoardSel"></span>
+              <button type="button" class="board-reset" id="floorBoardReset" hidden>Show all</button>
+            </div>
+            <div class="lane-scroll"><div class="lane-table" id="floorBoard" data-kind="floor"></div></div>
+          </section>
+        </div>
+      </div>
     </div>
 
     <div class="panel" style="margin-bottom:14px;">
@@ -948,6 +1062,7 @@
     $('growthBarSub').textContent = scenario.benefitsFromForecast
       ? "Annual, each planted tree's i-Tree forecast for that growth year — click a translation card above to change the metric, click a stage to view it there"
       : 'Annual, by design-option growth stage — click a translation card above to change the metric, click a stage to view it there';
+    renderSite3d(scenario, isAnnual, currency);
   }
 
   // Trees whose figures need a caveat. Stale: i-Tree results whose inputs changed since; they stay
@@ -1494,6 +1609,23 @@
     return `var(${SPECIES_CATEGORY_COLORS[index % SPECIES_CATEGORY_COLORS.length]})`;
   }
 
+  // Slots ranked once per file by carbon summed over every scenario, so a species keeps its color
+  // when the scheme or growth year changes (ranking each scenario on its own would reshuffle the
+  // colors as the trees grow, in the charts and in the 3D site alike).
+  function speciesSlots(data) {
+    if (state.speciesSlotsFor === data && state.speciesSlots) return state.speciesSlots;
+    const totals = new Map();
+    for (const scenario of (data && data.scenarios) || []) {
+      for (const s of scenario.species || []) {
+        const code = s.speciesCode || '—';
+        totals.set(code, (totals.get(code) || 0) + (s.carbonSequesteredAnnualKg ?? 0));
+      }
+    }
+    state.speciesSlots = new Map([...totals].sort((a, b) => b[1] - a[1]).map(([code], i) => [code, i]));
+    state.speciesSlotsFor = data;
+    return state.speciesSlots;
+  }
+
   function renderSpecies(species, isAnnual, currency) {
     const rows = species.map(s => ({
       name: s.commonName || s.speciesCode || 'Unassigned',
@@ -1506,9 +1638,12 @@
         : (s.carbonCostSavedLifetime ?? 0) + (s.stormWaterCostSavedLifetime ?? 0) + (s.airPollutionCostSavedLifetime ?? 0),
     })).sort((a, b) => b.carbon - a.carbon);
 
-    // Assigned once over the full (sorted) list, not recomputed per view, so the same species is
-    // always the same color whether it's showing in the top-8 chart or scrolling by in the table.
-    rows.forEach((r, i) => { r.color = speciesRampColor(i); });
+    // Assigned from the file's slots (see speciesSlots), not recomputed per view, so the same species
+    // is always the same color in the top-8 chart, the table and the 3D site, in every scenario.
+    const slots = speciesSlots(state.data);
+    rows.forEach((r, i) => { r.color = speciesRampColor(slots.has(r.code) ? slots.get(r.code) : i); });
+    // The 3D site and its result board color trees with the same mapping.
+    state.speciesColors = new Map(rows.map(r => [r.code, r.color]));
 
     const top = rows.slice(0, 8);
     const max = Math.max(1e-9, ...top.map(r => r.carbon));
@@ -1838,6 +1973,475 @@
         <td class="num">${fixed(f.areaSquareMeters, 1)}</td><td class="num">${fixed(f.carbonSequesteredAnnualKg, 1)}</td>
         <td class="num">${fixed(f.runoffAvoidedAnnualM3, 1)}</td><td class="num">${fixed(f.oxygenProducedAnnualKg, 1)}</td>
         <td class="num">${money(f.costSavedAnnual, currency)}</td>${hasUpkeep ? `<td class="num">${money(f.maintenanceCostAnnual ?? 0, currency)}</td>` : ''}</tr>`).join('')}</tbody>`;
+  }
+
+  // ---------------- 3D site and result board (schema 9) ----------------
+  // A schema 9 export can carry a `scene`: every tree (its position, the size the Revit family draws
+  // it at and, with growth years, its size in each year) and every planting area's triangulated top
+  // face, holes cut out. Each scenario names the trees and floors its figures come from
+  // (`sceneTrees` / `sceneFloors`), so the 3D shows exactly what the numbers count. three.js loads
+  // from jsDelivr only for such files; the export itself never leaves the browser. The result board
+  // lists the scenario's species and landscape types in the desktop app's swim-lane tables, and
+  // selecting rows filters the 3D: trees by species, planting areas by landscape type.
+  const site = { data: null, current: null, viewer: null, loading: null, error: null, speciesSel: new Set(), floorSel: new Set() };
+
+  const treeKey = (t) => t.speciesCode || 'Unassigned';
+  const floorKey = (f) => f.ldsType || 'Unassigned';
+
+  /** [trunkHeight, crownHeight, crownRadius, trunkRadius] for a tree in a scenario entry, in metres. */
+  function sceneTreeSize(scene, tree, scenario) {
+    if (scene.growth === 'forecast' && tree.profile != null && scenario.years != null) {
+      const rows = scene.profiles && scene.profiles[tree.profile];
+      if (rows && rows.length) return rows[Math.max(0, Math.min(scenario.years, scene.maxYear ?? rows.length - 1, rows.length - 1))];
+    }
+    return tree.drawn || [0, 0, 0, 0];
+  }
+
+  // Planting areas keep one recognisable color per landscape type (water blue, hard surfaces grey,
+  // vegetation a few greens), repeated as the swatch on their row.
+  const FLOOR_COLORS = [
+    [/water|wet|rain|pond|swale|basin/, 0x93c6dc],
+    [/asphalt|paving|paved|gravel|granite|stone|concrete|hard|building|road|resin|decking/, 0xc9c5bd],
+    [/wood|forest|copse|tree/, 0x5f9a6a],
+    [/shrub|hedge|planting|herbaceous|bulb/, 0x79b071],
+    [/lawn|turf|amenity/, 0xa9d48b],
+    [/meadow|grass|wildflower|roof/, 0xcfdc95],
+  ];
+  function floorColor(f) {
+    const key = `${f.ldsType || ''} ${f.type || ''} ${f.surfaceClass || ''}`.toLowerCase();
+    const hit = FLOOR_COLORS.find(([re]) => re.test(key));
+    return hit ? hit[1] : 0xd9d6bd;
+  }
+  const hexCss = (n) => '#' + n.toString(16).padStart(6, '0');
+
+  /** A CSS color with var(--x) resolved against the current theme: three.js needs the value itself. */
+  function resolveColor(css) {
+    const m = /^var\((--[\w-]+)\)$/.exec(css || '');
+    return (m ? getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() : css) || '#6fbf7f';
+  }
+  /** The species' color in the charts above (renderSpecies), so table, charts and 3D agree. */
+  const speciesColor = (key) => (state.speciesColors && state.speciesColors.get(key)) || 'var(--brand-300)';
+
+  function currencySymbol(currency) {
+    try {
+      const part = new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).formatToParts(0).find(p => p.type === 'currency');
+      return part ? part.value : currency;
+    } catch { return currency || ''; }
+  }
+
+  const PHASE_TEXT = { Created: 'New', Retained: 'Existing, kept', Enhanced: 'Existing, enhanced', Lost: 'Existing, removed' };
+
+  function renderSite3d(scenario, isAnnual, currency) {
+    const scene = state.data.scene;
+    const panel = $('site3dPanel');
+    if (!scene || !Array.isArray(scene.trees) || !Array.isArray(scene.floors)) {
+      panel.style.display = 'none';
+      site.current = null;
+      return;
+    }
+    panel.style.display = 'block';
+    if (site.data !== state.data) {
+      site.data = state.data;
+      site.speciesSel.clear();
+      site.floorSel.clear();
+      hideSiteCard();
+    }
+    const treeIdx = (scenario.sceneTrees || []).filter(i => scene.trees[i]);
+    const floorIdx = (scenario.sceneFloors || []).filter(i => scene.floors[i]);
+    site.current = { scene, scenario, treeIdx, floorIdx, isAnnual, currency };
+
+    const sizing = scene.growth === 'forecast' && scenario.years != null
+      ? (scenario.years === 0
+        ? "trees as planted, by the planting family's formulas"
+        : `trees grown ${scenario.years} years after planting by the planting family's formulas`)
+      : scene.growth === 'worksets' ? "trees as modelled on this growth year's workset" : 'trees as drawn in Revit';
+    $('site3dSub').textContent = `${scenario.label}: ${sizing}. Click rows to show only those species or landscape types.`;
+
+    renderTreeBoard(site.current);
+    renderFloorBoard(site.current);
+    updateBoardSelection();
+    updateSiteViewer();
+  }
+
+  /**
+   * One swim-lane table into `host` (a CSS grid): a name column, then `columns` ({ head, unit }),
+   * grouped by `lanes` ({ name, color, from, to }: 0-based value columns). Every cell names its
+   * grid row and column, so the lanes can span the header and all rows behind them.
+   */
+  function renderLaneTable(host, nameHead, columns, lanes, rows) {
+    host.style.gridTemplateColumns = `minmax(150px, 1.7fr) repeat(${columns.length}, minmax(64px, 1fr))`;
+    const span = rows.length + 2;
+    const at = (row, col) => `grid-row:${row};grid-column:${col}`;
+    let html = lanes.map(l => `<div class="lane ${l.color}" style="grid-row:1 / span ${span};grid-column:${l.from + 2} / ${l.to + 3}"></div>`).join('');
+    html += lanes.map(l => `<div class="lt-group ${l.color}" style="${at(1, `${l.from + 2} / ${l.to + 3}`)}">${escapeAttr(l.name)}</div>`).join('');
+    html += `<div class="lt-head" style="${at(2, 1)}">${escapeAttr(nameHead)}</div>`;
+    html += columns.map((c, i) => `<div class="lt-head num" style="${at(2, i + 2)}">${escapeAttr(c.head)}<span class="u">${escapeAttr(c.unit)}</span></div>`).join('');
+    html += rows.map((r, n) => `<div class="lt-row${r.muted ? ' muted' : ''}" data-key="${escapeAttr(r.key)}">` +
+      `<div class="lt-cell name" style="${at(n + 3, 1)}" tabindex="0" role="button" aria-pressed="false" title="${escapeAttr(r.name)}">` +
+      `${r.swatch}<span class="t">${escapeAttr(r.name)}</span></div>` +
+      r.values.map((v, i) => `<div class="lt-cell num" style="${at(n + 3, i + 2)}">${v}</div>`).join('') + '</div>').join('');
+    host.innerHTML = html;
+  }
+
+  function renderTreeBoard({ scene, scenario, treeIdx, isAnnual, currency }) {
+    // What the 3D shows of each species: its trees and their canopy at the sizes drawn.
+    const shown = new Map();
+    for (const i of treeIdx) {
+      const t = scene.trees[i];
+      const [, , crownR] = sceneTreeSize(scene, t, scenario);
+      const g = shown.get(treeKey(t)) || { count: 0, canopy: 0, name: t.commonName || treeKey(t) };
+      g.count++;
+      g.canopy += Math.PI * crownR * crownR;
+      shown.set(treeKey(t), g);
+    }
+    const carbon = (s) => isAnnual ? (s.carbonSequesteredAnnualKg ?? 0) : (s.carbonSequesteredLifetimeKg ?? 0);
+    const pollution = (s) => isAnnual ? (s.pollutionMassRemovedAnnualKg ?? 0) : (s.pollutionMassRemovedLifetimeKg ?? 0);
+    const cost = (s) => isAnnual
+      ? (s.carbonCostSavedAnnual ?? 0) + (s.stormWaterCostSavedAnnual ?? 0) + (s.airPollutionCostSavedAnnual ?? 0)
+      : (s.carbonCostSavedLifetime ?? 0) + (s.stormWaterCostSavedLifetime ?? 0) + (s.airPollutionCostSavedLifetime ?? 0);
+    const dot = (key) => `<span class="species-dot" style="background:${speciesColor(key)}"></span>`;
+    // Same order as the species chart above (by carbon), so the colors run down the table in turn.
+    const species = [...(scenario.species || [])].sort((a, b) => carbon(b) - carbon(a));
+    const listed = new Set(species.map(s => s.speciesCode || 'Unassigned'));
+    const rows = species.map(s => {
+      const key = s.speciesCode || 'Unassigned';
+      const g = shown.get(key);
+      return { key, name: s.commonName || key, swatch: dot(key),
+        values: [fixed(g ? g.count : 0, 0), fixed(g ? g.canopy : 0, 0), fixed(carbon(s), 1), fixed(pollution(s), 2), fixed(cost(s), 0)] };
+    });
+    // Trees in the 3D whose species has no figures (no i-Tree result) still get a row to filter by.
+    for (const [key, g] of shown) {
+      if (!listed.has(key)) rows.push({ key, name: g.name + ' (no results)', muted: true, swatch: dot(key),
+        values: [fixed(g.count, 0), fixed(g.canopy, 0), '—', '—', '—'] });
+    }
+    const host = $('treeBoard');
+    if (!rows.length) { host.innerHTML = '<div class="board-empty">No trees in this scenario.</div>'; return; }
+    const per = isAnnual ? '/yr' : ' lifetime';
+    renderLaneTable(host, 'Species', [
+      { head: 'Trees', unit: 'count' }, { head: 'Canopy', unit: 'm²' },
+      { head: 'Carbon', unit: 'kg' + per }, { head: 'Pollutants', unit: 'kg' + per },
+      { head: 'Cost saved', unit: currencySymbol(currency) + per },
+    ], [
+      { name: 'In 3D', color: 'green', from: 0, to: 1 },
+      { name: 'Benefits', color: 'blue', from: 2, to: 3 },
+      { name: 'Value', color: 'amber', from: 4, to: 4 },
+    ], rows);
+  }
+
+  function renderFloorBoard({ scene, floorIdx, scenario, currency }) {
+    const shown = new Map();
+    for (const i of floorIdx) {
+      const f = scene.floors[i];
+      const g = shown.get(floorKey(f)) || { count: 0, area: 0, color: floorColor(f) };
+      g.count++;
+      g.area += f.areaM2 || 0;
+      shown.set(floorKey(f), g);
+    }
+    const swatch = (g) => `<span class="floor-swatch" style="background:${hexCss(g ? g.color : 0xd9d6bd)}"></span>`;
+    const types = [...(scenario.floorTypes || [])].sort((a, b) => (b.areaSquareMeters ?? 0) - (a.areaSquareMeters ?? 0));
+    const listed = new Set(types.map(f => f.ldsType || 'Unassigned'));
+    const rows = types.map(f => {
+      const key = f.ldsType || 'Unassigned';
+      return { key, name: key, swatch: swatch(shown.get(key)),
+        values: [fixed(f.floorCount ?? 0, 0), fixed(f.areaSquareMeters ?? 0, 0), fixed(f.carbonSequesteredAnnualKg ?? 0, 1),
+          fixed(f.runoffAvoidedAnnualM3 ?? 0, 1), fixed(f.costSavedAnnual ?? 0, 0)] };
+    });
+    for (const [key, g] of shown) {
+      if (!listed.has(key)) rows.push({ key, name: key + ' (no results)', muted: true, swatch: swatch(g),
+        values: [fixed(g.count, 0), fixed(g.area, 0), '—', '—', '—'] });
+    }
+    const host = $('floorBoard');
+    if (!rows.length) { host.innerHTML = '<div class="board-empty">No planting areas in this scenario.</div>'; return; }
+    // Planting areas have annual figures only (the WWP sheet's rates), whichever period is showing.
+    renderLaneTable(host, 'Landscape type', [
+      { head: 'Areas', unit: 'count' }, { head: 'Area', unit: 'm²' },
+      { head: 'Carbon', unit: 'kg/yr' }, { head: 'Run-off', unit: 'm³/yr' },
+      { head: 'Cost saved', unit: currencySymbol(currency) + '/yr' },
+    ], [
+      { name: 'In 3D', color: 'green', from: 0, to: 1 },
+      { name: 'Benefits', color: 'blue', from: 2, to: 3 },
+      { name: 'Value', color: 'amber', from: 4, to: 4 },
+    ], rows);
+  }
+
+  /** Marks the selected rows, and drops selections the scenario no longer has a row for. */
+  function updateBoardSelection() {
+    for (const [hostId, sel, labelId, resetId] of [
+      ['treeBoard', site.speciesSel, 'treeBoardSel', 'treeBoardReset'],
+      ['floorBoard', site.floorSel, 'floorBoardSel', 'floorBoardReset'],
+    ]) {
+      const host = $(hostId);
+      const rows = [...host.querySelectorAll('.lt-row')];
+      const keys = new Set(rows.map(r => r.dataset.key));
+      [...sel].forEach(k => { if (!keys.has(k)) sel.delete(k); });
+      rows.forEach(r => {
+        const on = sel.has(r.dataset.key);
+        r.classList.toggle('selected', on);
+        r.querySelector('.lt-cell.name').setAttribute('aria-pressed', String(on));
+      });
+      host.classList.toggle('has-selection', sel.size > 0);
+      $(labelId).textContent = sel.size ? `${sel.size} selected` : '';
+      $(resetId).hidden = sel.size === 0;
+    }
+  }
+
+  function refreshSiteFilter() {
+    updateBoardSelection();
+    if (site.viewer && site.current) site.viewer.show(site.current);
+  }
+
+  function toggleBoardRow(kind, key) {
+    const sel = kind === 'tree' ? site.speciesSel : site.floorSel;
+    if (sel.has(key)) sel.delete(key); else sel.add(key);
+    refreshSiteFilter();
+  }
+
+  ['treeBoard', 'floorBoard'].forEach((id) => {
+    const host = $(id);
+    host.addEventListener('click', (e) => {
+      const row = e.target.closest('.lt-row');
+      if (row) toggleBoardRow(host.dataset.kind, row.dataset.key);
+    });
+    host.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const row = e.target.closest('.lt-row');
+      if (!row) return;
+      e.preventDefault();
+      toggleBoardRow(host.dataset.kind, row.dataset.key);
+    });
+  });
+  $('treeBoardReset').addEventListener('click', () => { site.speciesSel.clear(); refreshSiteFilter(); });
+  $('floorBoardReset').addEventListener('click', () => { site.floorSel.clear(); refreshSiteFilter(); });
+  $('site3dReset').addEventListener('click', () => { if (site.viewer) site.viewer.frame(); });
+
+  /** Points out the row of an element picked in the 3D, scrolling the board (not the page) to it. */
+  function flashBoardRow(kind, key) {
+    const host = $(kind === 'tree' ? 'treeBoard' : 'floorBoard');
+    const row = [...host.querySelectorAll('.lt-row')].find(r => r.dataset.key === key);
+    if (!row) return;
+    if (flashBoardRow.row) flashBoardRow.row.classList.remove('flash');
+    flashBoardRow.row = row;
+    void host.offsetWidth;
+    row.classList.add('flash');
+    const cell = row.querySelector('.lt-cell');
+    const board = host.closest('.site3d-board');
+    if (board && board.scrollHeight > board.clientHeight) {
+      const top = cell.getBoundingClientRect().top - board.getBoundingClientRect().top + board.scrollTop;
+      if (top < board.scrollTop || top + cell.offsetHeight > board.scrollTop + board.clientHeight) {
+        board.scrollTo({ top: Math.max(0, top - board.clientHeight / 3), behavior: 'smooth' });
+      }
+    }
+    clearTimeout(flashBoardRow.timer);
+    flashBoardRow.timer = setTimeout(() => row.classList.remove('flash'), 1600);
+  }
+
+  function showSiteCard(html) {
+    const card = $('site3dCard');
+    card.innerHTML = html + '<button class="close" type="button" aria-label="Close">×</button>';
+    card.classList.add('show');
+  }
+  function hideSiteCard() { $('site3dCard').classList.remove('show'); }
+  $('site3dCard').addEventListener('click', (e) => { if (e.target.closest('.close')) hideSiteCard(); });
+
+  // Theme switches change the page colors the 3D borrows (background, species).
+  $('themeToggle').addEventListener('click', () => { if (site.viewer) site.viewer.recolor(); });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (site.viewer) site.viewer.recolor(); });
+
+  async function updateSiteViewer() {
+    if (!site.loading) {
+      site.loading = createSiteViewer().then(v => (site.viewer = v), (err) => { site.error = err; return null; });
+    }
+    const viewer = await site.loading;
+    const status = $('site3dStatus');
+    if (!viewer) {
+      status.textContent = site.error && site.error.message === 'webgl'
+        ? "This browser can't show 3D: WebGL is unavailable or turned off. The tables still work."
+        : "The 3D view couldn't load three.js from cdn.jsdelivr.net. Check the connection and reload; the tables still work.";
+      status.style.display = 'flex';
+      $('site3dReset').style.display = 'none';
+      return;
+    }
+    status.style.display = 'none';
+    if (site.current) viewer.show(site.current);
+  }
+
+  async function createSiteViewer() {
+    let THREE, MapControls;
+    try {
+      [THREE, { MapControls }] = await Promise.all([import('three'), import('three/addons/controls/MapControls.js')]);
+    } catch (err) {
+      throw new Error('load');
+    }
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+    } catch (err) {
+      throw new Error('webgl');
+    }
+    const host = $('site3dView');
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.domElement.setAttribute('role', 'img');
+    renderer.domElement.setAttribute('aria-label', 'The site in 3D: drag to pan, right-drag to rotate, scroll to zoom, click a tree or planting area for details');
+    host.prepend(renderer.domElement);
+
+    const scene3 = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 20000);
+    const controls = new MapControls(camera, renderer.domElement);
+    controls.maxPolarAngle = Math.PI / 2 - 0.04;
+    scene3.add(new THREE.HemisphereLight(0xffffff, 0x6b7a5a, 2.2));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(-400, 800, 500);
+    scene3.add(sun);
+
+    const trunkGeometry = new THREE.CylinderGeometry(1, 1, 1, 8).translate(0, 0.5, 0);
+    const crownGeometry = new THREE.SphereGeometry(1, 16, 12);
+    const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x7a5a3c });
+    const crownMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    let built = null;
+    let floorMeshes = [];
+    let trunks = null;
+    let crowns = null;
+    let shown = [];
+    let box = new THREE.Box3();
+
+    // Scene positions are Revit's axes (X east, Y north, Z up); three.js has y up.
+    const toThree = (x, y, z) => new THREE.Vector3(x, z, -y);
+    const render = () => renderer.render(scene3, camera);
+    controls.addEventListener('change', render);
+
+    function build(scene) {
+      floorMeshes.forEach(mesh => { if (mesh) { scene3.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); } });
+      if (trunks) { scene3.remove(trunks, crowns); trunks.dispose(); crowns.dispose(); }
+      box = new THREE.Box3();
+      floorMeshes = scene.floors.map((f, index) => {
+        const p = f.positions || [];
+        if (p.length < 9 || !f.indices || f.indices.length < 3) return null;
+        const positions = new Float32Array(p.length);
+        for (let i = 0; i < p.length; i += 3) {
+          positions[i] = p[i]; positions[i + 1] = p[i + 2]; positions[i + 2] = -p[i + 1];
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setIndex(f.indices);
+        geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
+        box.union(geometry.boundingBox);
+        const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
+          color: floorColor(f), side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+        mesh.userData.index = index;
+        scene3.add(mesh);
+        return mesh;
+      });
+      const capacity = Math.max(1, scene.trees.length);
+      trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, capacity);
+      crowns = new THREE.InstancedMesh(crownGeometry, crownMaterial, capacity);
+      trunks.count = crowns.count = 0;
+      scene3.add(trunks, crowns);
+      for (const t of scene.trees) {
+        const base = toThree(...t.xyz);
+        const d = t.drawn || [0, 0, 0, 0];
+        box.expandByPoint(base).expandByPoint(base.clone().setY(base.y + d[0] + d[1]));
+      }
+      built = scene;
+      frame();
+    }
+
+    function frame() {
+      if (box.isEmpty()) return;
+      const center = box.getCenter(new THREE.Vector3());
+      const size = Math.max(box.getSize(new THREE.Vector3()).length(), 10);
+      controls.target.copy(center);
+      camera.position.copy(center).add(new THREE.Vector3(-0.3, 0.55, 0.55).multiplyScalar(size * 0.85));
+      camera.near = Math.max(0.1, size / 3000);
+      camera.far = size * 20;
+      camera.updateProjectionMatrix();
+      controls.update();
+      render();
+    }
+
+    function show(cur) {
+      if (cur.scene !== built) build(cur.scene);
+      const { scene, scenario, treeIdx, floorIdx } = cur;
+      const inEntry = new Set(floorIdx);
+      let floorsShown = 0;
+      floorMeshes.forEach((mesh, i) => {
+        if (!mesh) return;
+        mesh.visible = inEntry.has(i) && (site.floorSel.size === 0 || site.floorSel.has(floorKey(scene.floors[i])));
+        if (mesh.visible) floorsShown++;
+      });
+      shown = treeIdx.filter(i => site.speciesSel.size === 0 || site.speciesSel.has(treeKey(scene.trees[i])));
+      const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3(), color = new THREE.Color();
+      const colors = new Map();
+      shown.forEach((i, n) => {
+        const t = scene.trees[i];
+        const [trunkH, crownH, crownR, trunkR] = sceneTreeSize(scene, t, scenario);
+        const base = toThree(...t.xyz);
+        const r = Math.max(trunkR, 0.03);
+        trunks.setMatrixAt(n, matrix.compose(base, rotation, scale.set(r, Math.max(trunkH, 0.01), r)));
+        crowns.setMatrixAt(n, matrix.compose(base.clone().setY(base.y + trunkH + crownH / 2), rotation,
+          scale.set(Math.max(crownR, 0.05), Math.max(crownH / 2, 0.05), Math.max(crownR, 0.05))));
+        const key = treeKey(t);
+        if (!colors.has(key)) colors.set(key, resolveColor(speciesColor(key)));
+        crowns.setColorAt(n, color.set(colors.get(key)));
+      });
+      trunks.count = crowns.count = shown.length;
+      trunks.instanceMatrix.needsUpdate = crowns.instanceMatrix.needsUpdate = true;
+      if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
+      trunks.computeBoundingSphere();
+      crowns.computeBoundingSphere();
+      scene3.background = new THREE.Color(resolveColor('var(--surface-1)'));
+      const filtered = site.speciesSel.size > 0 || site.floorSel.size > 0;
+      $('site3dOverlay').innerHTML = `<span>${fixed(shown.length, 0)} trees · ${fixed(floorsShown, 0)} planting areas` +
+        `${scenario.years != null ? ' · ' + fixed(scenario.years, 0) + ' years' : ''}${filtered ? ' · filtered' : ''}</span>`;
+      render();
+    }
+
+    // Click (not drag) to see an element's details and its row in the board.
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let down = null;
+    renderer.domElement.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
+    renderer.domElement.addEventListener('click', (e) => {
+      if (!site.current || (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5)) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects([crowns, trunks, ...floorMeshes.filter(m => m && m.visible)], false)[0];
+      if (!hit) { hideSiteCard(); return; }
+      const { scene, scenario } = site.current;
+      const option = (o) => escapeAttr(o || 'Main model');
+      if ((hit.object === crowns || hit.object === trunks) && hit.instanceId != null) {
+        const t = scene.trees[shown[hit.instanceId]];
+        const [trunkH, crownH, crownR] = sceneTreeSize(scene, t, scenario);
+        showSiteCard(`<b>${escapeAttr(t.commonName || treeKey(t))}</b>` +
+          `<span class="k">Type</span> ${escapeAttr(t.type || '—')}<br>` +
+          `<span class="k">Height</span> ${fixed(trunkH + crownH, 1)} m · <span class="k">crown</span> ⌀ ${fixed(crownR * 2, 1)} m<br>` +
+          `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[t.phaseRole] || t.phaseRole || '—')}<br>` +
+          `<span class="k">Option</span> ${option(t.designOption)}`);
+        flashBoardRow('tree', treeKey(t));
+      } else {
+        const f = scene.floors[hit.object.userData.index];
+        showSiteCard(`<b>${escapeAttr(floorKey(f))}</b>` +
+          `<span class="k">Type</span> ${escapeAttr(f.type || '—')}<br>` +
+          `<span class="k">Area</span> ${fixed(f.areaM2, 0)} m²${f.holes ? ` · ${fixed(f.holes, 0)} hole${f.holes === 1 ? '' : 's'}` : ''}<br>` +
+          `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[f.phaseRole] || f.phaseRole || '—')}<br>` +
+          `<span class="k">Option</span> ${option(f.designOption)}`);
+        flashBoardRow('floor', floorKey(f));
+      }
+    });
+
+    function resize() {
+      const w = host.clientWidth, h = host.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      render();
+    }
+    new ResizeObserver(resize).observe(host);
+    resize();
+
+    return { show, frame, recolor: () => { if (site.current) show(site.current); } };
   }
 
 })();

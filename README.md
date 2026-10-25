@@ -32,7 +32,10 @@ your browser; nothing you upload leaves it. Two features make small, public,
 unauthenticated lookups using only data already in the export: the region map
 (a reverse geocode, then a country's boundary shapes — see "Region map"
 below) and the most-impactful-tree photo (a Wikipedia summary lookup by
-species common name — see "Most impactful tree" below).
+species common name — see "Most impactful tree" below). A schema 9 export
+with a 3D scene also downloads the [three.js](https://threejs.org) library
+(0.170.0) from jsDelivr to draw it — a plain library download; no project data
+is sent anywhere (see "3D site" below).
 
 ## Usage
 
@@ -47,13 +50,18 @@ species common name — see "Most impactful tree" below).
    Lifetime**, and the species chart between **Chart / Table** view. Click
    any translation card (Avoided water run-off, CO₂, Air pollutants, Air
    generated, Cost saved) to make the growth charts below plot that metric.
+5. With a schema 9 export, the **3D site** panel shows the scenario's trees
+   and planting areas. Drag to pan, right-drag to rotate, scroll to zoom, click
+   a tree or planting area for its details. Click rows of the result board
+   beside it to show only those species or landscape types; **Show all**
+   clears the selection.
 
 Don't have an export handy? Click **Load sample data** to preview the layout
 with the bundled example (`sample-data/example-export.json`).
 
 ## What's in the export
 
-The JSON schema this page expects (schema version 6; versions 2 to 5 still
+The JSON schema this page expects (schema version 9; versions 2 to 8 still
 load, without the panels their fields feed) is produced by
 `DashboardJsonExportService` in the
 [LandscapeDataManager](https://github.com/jason-svn/LandscapeDataManager)
@@ -66,8 +74,9 @@ Top-level shape:
 
 ```jsonc
 {
-  "schemaVersion": 6,
+  "schemaVersion": 9,
   "project": { "title", "currency", "location": { "latitude", "longitude", "placeName" }, "generatedAt" },
+  "scene": { /* schema 9, optional: the trees and planting areas in 3D — see "3D site" below */ },
   "scenarios": [
     {
       "label": "Growth Timeline : 10 Years (Primary)",
@@ -77,7 +86,9 @@ Top-level shape:
       "siteKpi": { /* canopy cover, native species ratio, lighting compliance, ... */ },
       "bng": { /* BNG baseline vs post-intervention units, net change %, 10% target, floor counts per role, byBroadHabitat */ },
       "species": [ /* per-species subtotals, scoped to this design option */ ],
-      "floorTypes": [ /* per floor/softscape-type subtotals */ ]
+      "floorTypes": [ /* per floor/softscape-type subtotals */ ],
+      "sceneTrees": [ /* schema 9: indices into scene.trees */ ],
+      "sceneFloors": [ /* schema 9: indices into scene.floors */ ]
     }
     // ...one entry per design option
   ]
@@ -132,6 +143,49 @@ fallback. Both fields are absent for scenarios not scored yet.
 `location` is best-effort — Revit's Site Location defaults to an unset
 placeholder on new projects, so the map panel gracefully shows a "location
 not set" message instead when it's missing.
+
+## 3D site
+
+A schema 9 export can carry a `scene`: every tree and every planting area of
+the model, which the **3D site** panel draws with
+[three.js](https://threejs.org). The library (0.170.0) is fetched from
+cdn.jsdelivr.net only when the file has a scene. It is a plain library
+download: the export itself never leaves the browser. Without a connection the
+panel says so and its tables still work; without WebGL likewise.
+
+```jsonc
+"scene": {
+  "units": "m",
+  "origin": [x, y, z],        // Revit internal coordinates; positions below are relative to it (X east, Y north, Z up)
+  "growth": "forecast",       // "forecast" | "worksets" | "drawn"
+  "maxYear": 25,
+  "profiles": [ [ [trunkHeight, crownHeight, crownRadius, trunkRadius], ... ] ],   // one row per year 0..maxYear
+  "trees": [ { "id", "speciesCode", "commonName", "type", "xyz", "drawn": [trunkHeight, crownHeight, crownRadius, trunkRadius],
+               "profile", "phaseRole", "designOption" } ],
+  "floors": [ { "id", "ldsType", "type", "surfaceClass", "areaM2", "holes", "phaseRole", "designOption",
+                "positions": [x, y, z, ...], "indices": [a, b, c, ...] } ]
+}
+```
+
+- **What's shown follows the numbers.** Each scenario lists the trees and
+  floors its figures come from (`sceneTrees`, `sceneFloors`, indices into the
+  scene), so the 3D always shows what the KPIs count: the scheme's design
+  options, demolished elements left out, the existing site as it stood.
+- **Tree sizes.** A tree is a trunk cylinder with an ellipsoid crown on top,
+  as the Revit planting family draws it (trunk = H/3, crown = 2H/3). With
+  `growth` `"forecast"` each scenario year takes the tree's `profile` row for
+  that year, the family's formulas applied to i-Tree's forecast, so moving the
+  growth-year slider grows the trees; otherwise the tree is drawn at `drawn`.
+- **Planting areas** are each floor's triangulated top face, holes already cut
+  out, colored by landscape type (water blue, hard surfaces grey, vegetation
+  greens).
+- **Result board.** Beside the 3D, two tables in the desktop Dashboard's
+  swim-lane style list the scenario's trees by species and its planting areas
+  by landscape type, following the Annual / Lifetime toggle (planting areas
+  are annual only). Click rows to show only those species or types in the 3D
+  (each table filters its own kind; nothing selected shows everything); click
+  an element in the 3D to see its details and its row. Species keep the colors
+  they have in the charts above.
 
 ## Region map
 

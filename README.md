@@ -59,7 +59,7 @@ is sent anywhere (see "3D site" below).
 5. With a schema 9 export, the **3D site** panel shows the scenario's trees
    and planting areas. Drag to pan, right-drag to rotate, scroll to zoom, click
    a tree or planting area for its details. Click rows of the result board
-   beside it to show only those species or landscape types (Shift+click
+   under it to show only those species or landscape types (Shift+click
    selects a range); **Show all** clears the selection. With a schema 10
    export, **Colour by** colours the 3D as one of the model's Revit views does
    with its filters (e.g. O₂ produced per tree in bands), with a legend.
@@ -201,8 +201,9 @@ panel says so and its tables still work; without WebGL likewise.
 - **Planting areas** are each floor's triangulated top face, holes already cut
   out, colored by landscape type (water blue, hard surfaces grey, vegetation
   greens).
-- **Result board.** Beside the 3D, two tables in the desktop Dashboard's
-  swim-lane style list the scenario's trees by species and its planting areas
+- **Result board.** Under the 3D, two tables in the desktop Dashboard's
+  swim-lane style (side by side when the page is wide enough) list the
+  scenario's trees by species and its planting areas
   by landscape type, following the Annual / Lifetime toggle (planting areas
   are annual only). Click rows to show only those species or types in the 3D
   (each table filters its own kind; nothing selected shows everything;

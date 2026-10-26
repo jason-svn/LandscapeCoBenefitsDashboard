@@ -59,22 +59,24 @@ is sent anywhere (see "3D site" below).
 5. With a schema 9 export, the **3D site** panel shows the scenario's trees
    and planting areas. Drag to pan, right-drag to rotate, scroll to zoom, click
    a tree or planting area for its details. Click rows of the result board
-   beside it to show only those species or landscape types; **Show all**
-   clears the selection.
+   beside it to show only those species or landscape types (Shift+click
+   selects a range); **Show all** clears the selection. With a schema 10
+   export, **Colour by** colours the 3D as one of the model's Revit views does
+   with its filters (e.g. O₂ produced per tree in bands), with a legend.
 
 Don't have an export handy? Click **Load sample data** to preview the page with
-the bundled example (`sample-data/example-export.json`): a schema 9 export of
-the LIM sandbox model (LAN_LIM Arboris_EWR Sandbox) with its 3D scene — three
-schemes (A, B and C, each with the whole existing site, retained or demolished)
-and the existing site — made on 2026-10-25 by the export code of
-LandscapeDataManager v1.7.0. It is 1.6 MB, so
+the bundled example (`sample-data/example-export.json`): a schema 10 export of
+the LIM sandbox model (LAN_LIM Arboris_EWR Sandbox) with its 3D scene and the
+colour schemes of its Revit views — three schemes (A, B and C, each with the
+whole existing site, retained or demolished) and the existing site — made on
+2026-10-25 by the export code of LandscapeDataManager v1.8.0. It is 1.6 MB, so
 the page fetches it when the button is clicked rather than carrying it inline;
 that works on GitHub Pages or any web server, but a page opened as a local file
 can't fetch it, so drop the file onto the page instead.
 
 ## What's in the export
 
-The JSON schema this page expects (schema version 9; versions 2 to 8 still
+The JSON schema this page expects (schema version 10; versions 2 to 9 still
 load, without the panels their fields feed) is produced by
 `DashboardJsonExportService` in the
 [LandscapeDataManager](https://github.com/jason-svn/LandscapeDataManager)
@@ -87,7 +89,7 @@ Top-level shape:
 
 ```jsonc
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "project": { "title", "currency", "location": { "latitude", "longitude", "placeName" }, "generatedAt" },
   "scene": { /* schema 9, optional: the trees and planting areas in 3D — see "3D site" below */ },
   "scenarios": [
@@ -176,7 +178,14 @@ panel says so and its tables still work; without WebGL likewise.
   "trees": [ { "id", "speciesCode", "commonName", "type", "xyz", "drawn": [trunkHeight, crownHeight, crownRadius, trunkRadius],
                "profile", "phaseRole", "designOption" } ],
   "floors": [ { "id", "ldsType", "type", "surfaceClass", "areaM2", "holes", "phaseRole", "designOption",
-                "positions": [x, y, z, ...], "indices": [a, b, c, ...] } ]
+                "positions": [x, y, z, ...], "indices": [a, b, c, ...] } ],
+  "colourSchemes": [          // schema 10, optional: the model's views that colour trees or floors with filters
+    { "name": "O2", "parameter": "!_S_PLT_Result_OxygenProducedAnnual_Mass", "unit": "kg/yr",
+      "rules": [ { "label": "4–8", "filter": "WWP_Tree O2 04-08 kg per yr", "colour": "#aad669", "min": 4, "max": 8 } ],
+      "trees": [ 1, 3, -1, ... ],        // per scene tree: its entry in rules, -1 for none; null when no rule is for trees
+      "floors": null,
+      "treeValues": [ 7.67, ... ] }      // with one number parameter behind every rule: each tree's value in `unit`
+  ]
 }
 ```
 
@@ -196,9 +205,23 @@ panel says so and its tables still work; without WebGL likewise.
   swim-lane style list the scenario's trees by species and its planting areas
   by landscape type, following the Annual / Lifetime toggle (planting areas
   are annual only). Click rows to show only those species or types in the 3D
-  (each table filters its own kind; nothing selected shows everything); click
-  an element in the 3D to see its details and its row. Species keep the colors
-  they have in the charts above, the same in every scenario and year.
+  (each table filters its own kind; nothing selected shows everything;
+  Shift+click selects every row from the last one clicked); click an element in
+  the 3D to see its details and its row. Species keep the colors they have in
+  the charts above, the same in every scenario and year.
+- **Colour by** (schema 10). The model's Revit views that colour trees or
+  floors with view filters — every view, not only those on sheets; views that
+  colour the same way are listed once, under the shortest name on a sheet —
+  become choices in the panel's **Colour by** list. Revit itself decided which
+  filter colours each element when the file was exported (the first of the
+  view's filters that takes it, as Revit applies them), so the 3D matches the
+  view: the colours are the filters' surface (or line) colours, and an element
+  no filter takes is grey. A kind the view doesn't colour keeps its usual
+  colours. The legend lists each band or value with how many of the scenario's
+  elements take it; click entries (Shift+click for a range) to show only
+  those. The values are the parameters as they are in Revit, so they don't
+  change with the growth-year slider. The info card adds the element's value
+  and band. On a phone the legend starts folded to its title.
 - **Highlight.** With the panel's **Highlight** switch on (the default,
   remembered in the browser), the tree or planting area under the pointer
   lights up, and the one you click stays highlighted — an orange crown and a

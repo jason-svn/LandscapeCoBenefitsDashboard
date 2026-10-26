@@ -327,7 +327,35 @@
   .site3d-view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .site3d-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
     padding: 24px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
-  .site3d-tools { position: absolute; right: 10px; top: 10px; display: flex; align-items: center; gap: 8px; }
+  .site3d-tools { position: absolute; right: 10px; top: 10px; left: 10px; display: flex; flex-wrap: wrap; justify-content: flex-end;
+    align-items: center; gap: 8px; pointer-events: none; }
+  .site3d-tools > * { pointer-events: auto; }
+  .site3d-colour { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 4px 2px 10px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface-2); color: var(--text-secondary); }
+  .site3d-colour[hidden] { display: none; }
+  .site3d-colour select { font: inherit; color: var(--text-primary); background: transparent; border: none; padding: 3px 2px; max-width: 190px; cursor: pointer; }
+  .site3d-legend { position: absolute; right: 10px; bottom: 34px; max-height: calc(100% - 110px); max-width: min(240px, calc(100% - 20px)); overflow: auto;
+    background: color-mix(in srgb, var(--surface-2) 94%, transparent); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 8px 6px; font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.10); }
+  .site3d-legend[hidden] { display: none; }
+  .site3d-legend h5 { margin: 0; font-size: 12px; font-weight: 700; }
+  .site3d-legend .head { display: flex; align-items: baseline; gap: 6px; width: 100%; margin: 0 0 4px; padding: 0 4px; border: none;
+    background: none; font: inherit; color: var(--text-primary); text-align: left; cursor: pointer; }
+  .site3d-legend .head::after { content: '▾'; margin-left: auto; color: var(--text-muted); font-size: 11px; }
+  .site3d-legend.collapsed .head { margin: 0; }
+  .site3d-legend.collapsed .head::after { content: '▸'; }
+  .site3d-legend.collapsed .rows { display: none; }
+  .site3d-legend h5 .u { color: var(--text-muted); font-weight: 400; }
+  .site3d-legend button { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%;
+    text-align: left; border: none; background: none; padding: 2px 4px; border-radius: 5px; font: inherit; color: var(--text-primary); cursor: pointer; }
+  .site3d-legend button:hover { background: color-mix(in srgb, var(--text-primary) 7%, transparent); }
+  .site3d-legend button .sw { width: 14px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
+  .site3d-legend button .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .site3d-legend button .n { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .site3d-legend.filtered button:not(.on) { opacity: 0.45; }
+  .site3d-legend button.on { background: color-mix(in srgb, var(--brand-300) 28%, transparent); }
+  .site3d-legend .hint { margin: 4px 4px 0; font-size: 11px; color: var(--text-muted); }
+  .site3d-legend .reset { color: var(--brand-700); font-weight: 600; cursor: pointer; }
   .site3d-reset { font-size: 12px; padding: 6px 10px; }
   .site3d-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 10px; border: 1px solid var(--border);
     border-radius: 8px; background: var(--surface-2); color: var(--text-secondary); cursor: pointer; user-select: none; }
@@ -344,7 +372,7 @@
     color: var(--text-muted); font-size: 16px; line-height: 1; padding: 4px 6px; }
   .site3d-board { max-height: 560px; overflow: auto; display: flex; flex-direction: column; gap: 20px; }
   @media (max-width: 980px) { .site3d-board { max-height: none; } }
-  .board-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+  .board-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-bottom: 2px; }
   .board-head h4 { margin: 0; font-size: 13px; }
   .board-head .sel { font-size: 12px; color: var(--text-muted); margin-left: auto; }
   .board-reset { font: inherit; font-size: 12px; font-weight: 600; color: var(--brand-700); background: none; border: none; cursor: pointer; padding: 2px 4px; }
@@ -392,6 +420,12 @@
   .year-slicer { display: flex; align-items: center; gap: 10px; background: var(--surface-1); border-radius: 8px; padding: 6px 12px 4px; }
   .slicer-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
   .slicer-track { position: relative; width: 240px; }
+  @media (max-width: 520px) {
+    .top-actions, .year-slicer { max-width: 100%; }
+    .year-slicer { flex-wrap: wrap; }
+    .slicer-track { width: 100%; }
+    .slicer-select { max-width: 100%; }
+  }
 .slicer-select { font: inherit; font-size: 12px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border, #d0d7d0); background: var(--surface-0, #fff); color: var(--text-primary); max-width: 220px; }
   @media (max-width: 520px) { .slicer-track { width: 170px; } }
   .slicer-track input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; margin: 0; background: transparent; cursor: pointer; display: block; }
@@ -492,9 +526,12 @@
           <div class="site3d-status" id="site3dStatus">Loading the 3D view…</div>
           <div class="site3d-card" id="site3dCard" role="status" aria-live="polite"></div>
           <div class="site3d-tools">
+            <label class="site3d-colour" id="site3dColourWrap" hidden title="Colour the trees and planting areas as a Revit view's filters do">Colour by
+              <select id="site3dColour"><option value="">Species &amp; landscape type</option></select></label>
             <label class="site3d-toggle" title="Highlight the tree or planting area under the pointer, and the one you click"><input type="checkbox" id="site3dHighlight" checked> Highlight</label>
             <button class="btn site3d-reset" id="site3dReset" type="button">Reset view</button>
           </div>
+          <div class="site3d-legend" id="site3dLegend" hidden></div>
           <div class="site3d-overlay" id="site3dOverlay"></div>
         </div>
         <div class="site3d-board">
@@ -2082,7 +2119,8 @@
   // from jsDelivr only for such files; the export itself never leaves the browser. The result board
   // lists the scenario's species and landscape types in the desktop app's swim-lane tables, and
   // selecting rows filters the 3D: trees by species, planting areas by landscape type.
-  const site = { data: null, current: null, viewer: null, loading: null, error: null, speciesSel: new Set(), floorSel: new Set() };
+  const site = { data: null, current: null, viewer: null, loading: null, error: null, speciesSel: new Set(), floorSel: new Set(),
+    colour: '', bandSel: new Set(), legendCollapsed: window.matchMedia('(max-width: 520px)').matches };
 
   const treeKey = (t) => t.speciesCode || 'Unassigned';
   const floorKey = (f) => f.ldsType || 'Unassigned';
@@ -2130,6 +2168,61 @@
 
   const PHASE_TEXT = { Created: 'New', Retained: 'Existing, kept', Enhanced: 'Existing, enhanced', Lost: 'Existing, removed' };
 
+  // "Colour by": a Revit view's filter colours (schema 10 `scene.colourSchemes`). Revit decided
+  // each element's legend entry when exporting (`trees` / `floors`: an index into `rules` per scene
+  // element, -1 for none), so the 3D colours exactly as the view does. An element none of the
+  // view's filters takes is grey; a kind the view doesn't colour at all (floors in a trees-only
+  // view) keeps its usual colours.
+  const NO_RULE_COLOR = '#c8c8c4';
+  const schemeLabel = (s) => s.name.replace(/_/g, ' ');
+  function activeScheme() {
+    const schemes = (site.current && site.current.scene.colourSchemes) || [];
+    return schemes.find(s => s.name === site.colour) || null;
+  }
+  /** The legend entry a scheme gives a tree or floor (-1 for none); null when it doesn't colour that kind. */
+  function ruleOf(scheme, kind, index) {
+    const list = scheme && (kind === 'tree' ? scheme.trees : scheme.floors);
+    return list ? (list[index] ?? -1) : null;
+  }
+  /** Whether the legend's band selection keeps the element; a kind the scheme doesn't colour always stays. */
+  function passesBands(scheme, kind, index) {
+    if (!scheme || site.bandSel.size === 0) return true;
+    const rule = ruleOf(scheme, kind, index);
+    return rule == null || site.bandSel.has(rule);
+  }
+  const schemeValue = (v) => Math.abs(v) >= 100 ? fixed(v, 0) : Math.abs(v) >= 1 ? fixed(v, Math.abs(v) >= 10 ? 1 : 2) : String(Number(v.toPrecision(2)));
+
+  function populateColourSchemes(scene) {
+    const schemes = scene.colourSchemes || [];
+    const select = $('site3dColour');
+    select.innerHTML = '<option value="">Species &amp; landscape type</option>' + schemes.map(s =>
+      `<option value="${escapeAttr(s.name)}">${escapeAttr(schemeLabel(s))}${s.unit ? ` (${escapeAttr(s.unit)})` : ''}</option>`).join('');
+    $('site3dColourWrap').hidden = schemes.length === 0;
+    let saved = '';
+    try { saved = localStorage.getItem('lim.site3d.colour') || ''; } catch { /* not remembered */ }
+    site.colour = schemes.some(s => s.name === saved) ? saved : '';
+    select.value = site.colour;
+  }
+
+  /** The legend of the scheme in use: each entry's colour and how many of the scenario's elements take it; click to show only those. */
+  function renderLegend(scheme, counts, none) {
+    const host = $('site3dLegend');
+    host.hidden = !scheme;
+    if (!scheme) { host.innerHTML = ''; return; }
+    const rows = scheme.rules.map((r, i) => ({ rule: i, label: r.label, title: `Revit filter: ${r.filter}`, colour: r.colour, n: counts[i] || 0 }));
+    if (none > 0) rows.push({ rule: -1, label: 'Not coloured', title: "None of the view's filters takes these", colour: NO_RULE_COLOR, n: none });
+    host.innerHTML = `<div class="head" role="button" tabindex="0" data-collapse aria-expanded="${!site.legendCollapsed}" title="Show or hide the legend">` +
+      `<h5>${escapeAttr(schemeLabel(scheme))}${scheme.unit ? ` <span class="u">${escapeAttr(scheme.unit)}</span>` : ''}</h5></div><div class="rows">` +
+      rows.map(r => {
+        const on = site.bandSel.has(r.rule);
+        return `<button type="button" data-rule="${r.rule}" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${escapeAttr(r.title)}">` +
+          `<span class="sw" style="background:${escapeAttr(r.colour)}"></span><span class="t">${escapeAttr(r.label)}</span><span class="n">${fixed(r.n, 0)}</span></button>`;
+      }).join('') +
+      `<div class="hint">${site.bandSel.size ? '<span class="reset" role="button" tabindex="0" data-reset>Show all</span>' : 'Click to show only a band · Shift+click: range'}</div></div>`;
+    host.classList.toggle('filtered', site.bandSel.size > 0);
+    host.classList.toggle('collapsed', site.legendCollapsed);
+  }
+
   function renderSite3d(scenario, isAnnual, currency) {
     const scene = state.data.scene;
     const panel = $('site3dPanel');
@@ -2143,6 +2236,8 @@
       site.data = state.data;
       site.speciesSel.clear();
       site.floorSel.clear();
+      site.bandSel.clear();
+      populateColourSchemes(scene);
       hideSiteCard();
     }
     const treeIdx = (scenario.sceneTrees || []).filter(i => scene.trees[i]);
@@ -2286,7 +2381,7 @@
         r.querySelector('.lt-cell.name').setAttribute('aria-pressed', String(on));
       });
       host.classList.toggle('has-selection', sel.size > 0);
-      $(labelId).textContent = sel.size ? `${sel.size} selected` : '';
+      $(labelId).textContent = sel.size ? `${sel.size} selected` : 'Click to filter · Shift+click: range';
       $(resetId).hidden = sel.size === 0;
     }
   }
@@ -2296,24 +2391,73 @@
     if (site.viewer && site.current) site.viewer.show(site.current);
   }
 
-  function toggleBoardRow(kind, key) {
+  /**
+   * Click (or Ctrl/⌘+click) adds or removes `key`; Shift+click adds every key from `anchor` (the
+   * last one clicked) to it, in `order` — as in the LIM tools.
+   */
+  function toggleInSelection(sel, order, anchor, key, range) {
+    const from = order.indexOf(anchor), to = order.indexOf(key);
+    if (range && from >= 0 && to >= 0) order.slice(Math.min(from, to), Math.max(from, to) + 1).forEach(k => sel.add(k));
+    else if (sel.has(key)) sel.delete(key);
+    else sel.add(key);
+  }
+
+  /** The row each board's (and the legend's) last click started from, for Shift+click ranges. */
+  const boardAnchor = { tree: null, floor: null, band: null };
+
+  function toggleBoardRow(kind, key, range) {
     const sel = kind === 'tree' ? site.speciesSel : site.floorSel;
-    if (sel.has(key)) sel.delete(key); else sel.add(key);
+    const keys = [...$(kind === 'tree' ? 'treeBoard' : 'floorBoard').querySelectorAll('.lt-row')].map(r => r.dataset.key);
+    toggleInSelection(sel, keys, boardAnchor[kind], key, range);
+    boardAnchor[kind] = key;
     refreshSiteFilter();
   }
 
+  $('site3dColour').addEventListener('change', (e) => {
+    site.colour = e.target.value;
+    site.bandSel.clear();
+    try { localStorage.setItem('lim.site3d.colour', site.colour); } catch { /* not remembered */ }
+    refreshSiteFilter();
+  });
+  const legend = $('site3dLegend');
+  legend.addEventListener('mousedown', (e) => { if (e.shiftKey && e.target.closest('[data-rule]')) e.preventDefault(); });
+  // A phone-sized 3D view starts with the legend folded to its title, so it doesn't cover the site.
+  const toggleLegend = () => {
+    site.legendCollapsed = !site.legendCollapsed;
+    legend.classList.toggle('collapsed', site.legendCollapsed);
+    legend.querySelector('[data-collapse]').setAttribute('aria-expanded', String(!site.legendCollapsed));
+  };
+  legend.addEventListener('click', (e) => {
+    if (e.target.closest('[data-collapse]')) { toggleLegend(); return; }
+    if (e.target.closest('[data-reset]')) { site.bandSel.clear(); refreshSiteFilter(); return; }
+    const button = e.target.closest('[data-rule]');
+    if (!button) return;
+    const rule = Number(button.dataset.rule);
+    const order = [...legend.querySelectorAll('[data-rule]')].map(b => Number(b.dataset.rule));
+    toggleInSelection(site.bandSel, order, boardAnchor.band, rule, e.shiftKey);
+    boardAnchor.band = rule;
+    refreshSiteFilter();
+  });
+  legend.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.target.closest('[data-collapse]')) { e.preventDefault(); toggleLegend(); }
+    else if (e.target.closest('[data-reset]')) { e.preventDefault(); site.bandSel.clear(); refreshSiteFilter(); }
+  });
+
   ['treeBoard', 'floorBoard'].forEach((id) => {
     const host = $(id);
+    // Shift+click would otherwise also select the text between the two rows.
+    host.addEventListener('mousedown', (e) => { if (e.shiftKey && e.target.closest('.lt-row')) e.preventDefault(); });
     host.addEventListener('click', (e) => {
       const row = e.target.closest('.lt-row');
-      if (row) toggleBoardRow(host.dataset.kind, row.dataset.key);
+      if (row) toggleBoardRow(host.dataset.kind, row.dataset.key, e.shiftKey);
     });
     host.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const row = e.target.closest('.lt-row');
       if (!row) return;
       e.preventDefault();
-      toggleBoardRow(host.dataset.kind, row.dataset.key);
+      toggleBoardRow(host.dataset.kind, row.dataset.key, e.shiftKey);
     });
   });
   $('treeBoardReset').addEventListener('click', () => { site.speciesSel.clear(); refreshSiteFilter(); });
@@ -2427,7 +2571,7 @@
     scene3.add(marker, outline);
     let hovered = null, picked = null; // { kind: 'tree' | 'floor', index } into the scene's trees or floors
     let instanceOf = new Map();        // a shown tree's index -> its instance
-    let baseColors = new Map();        // species key -> its crown color
+    let baseColors = new Map();        // a shown tree's index -> its crown color
     let painted = [];
     let markerRadius = 1;
     const highlightToggle = $('site3dHighlight');
@@ -2446,7 +2590,7 @@
         if (el.kind === 'floor') {
           if (floorMeshes[el.index]) floorMeshes[el.index].material.emissive.setHex(0x000000);
         } else if (built && instanceOf.has(el.index)) {
-          crowns.setColorAt(instanceOf.get(el.index), new THREE.Color(baseColors.get(treeKey(built.trees[el.index]))));
+          crowns.setColorAt(instanceOf.get(el.index), new THREE.Color(baseColors.get(el.index)));
         }
       }
       painted = [];
@@ -2558,16 +2702,36 @@
       unpaint();
       if (cur.scene !== built) build(cur.scene);
       const { scene, scenario, treeIdx, floorIdx } = cur;
+      // The legend counts what the board's selection shows; its own band selection then narrows the 3D.
+      const scheme = activeScheme();
+      const counts = [];
+      let none = 0;
+      const tally = (rule) => { if (rule == null) return; if (rule < 0) none++; else counts[rule] = (counts[rule] || 0) + 1; };
       const inEntry = new Set(floorIdx);
       let floorsShown = 0;
       floorMeshes.forEach((mesh, i) => {
         if (!mesh) return;
-        mesh.visible = inEntry.has(i) && (site.floorSel.size === 0 || site.floorSel.has(floorKey(scene.floors[i])));
+        const listed = inEntry.has(i) && (site.floorSel.size === 0 || site.floorSel.has(floorKey(scene.floors[i])));
+        if (listed) tally(ruleOf(scheme, 'floor', i));
+        mesh.visible = listed && passesBands(scheme, 'floor', i);
+        const rule = ruleOf(scheme, 'floor', i);
+        mesh.material.color.set(rule == null ? floorColor(scene.floors[i]) : rule >= 0 ? scheme.rules[rule].colour : NO_RULE_COLOR);
         if (mesh.visible) floorsShown++;
       });
-      shown = treeIdx.filter(i => site.speciesSel.size === 0 || site.speciesSel.has(treeKey(scene.trees[i])));
+      const listedTrees = treeIdx.filter(i => site.speciesSel.size === 0 || site.speciesSel.has(treeKey(scene.trees[i])));
+      listedTrees.forEach(i => tally(ruleOf(scheme, 'tree', i)));
+      shown = listedTrees.filter(i => passesBands(scheme, 'tree', i));
+      renderLegend(scheme, counts, none);
       const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3(), color = new THREE.Color();
+      const speciesColors = new Map();
       const colors = new Map();
+      const treeColor = (i) => {
+        const rule = ruleOf(scheme, 'tree', i);
+        if (rule != null) return rule >= 0 ? scheme.rules[rule].colour : NO_RULE_COLOR;
+        const key = treeKey(scene.trees[i]);
+        if (!speciesColors.has(key)) speciesColors.set(key, resolveColor(speciesColor(key)));
+        return speciesColors.get(key);
+      };
       shown.forEach((i, n) => {
         const t = scene.trees[i];
         const [trunkH, crownH, crownR, trunkR] = sceneTreeSize(scene, t, scenario);
@@ -2576,9 +2740,8 @@
         trunks.setMatrixAt(n, matrix.compose(base, rotation, scale.set(r, Math.max(trunkH, 0.01), r)));
         crowns.setMatrixAt(n, matrix.compose(base.clone().setY(base.y + trunkH + crownH / 2), rotation,
           scale.set(Math.max(crownR, 0.05), Math.max(crownH / 2, 0.05), Math.max(crownR, 0.05))));
-        const key = treeKey(t);
-        if (!colors.has(key)) colors.set(key, resolveColor(speciesColor(key)));
-        crowns.setColorAt(n, color.set(colors.get(key)));
+        colors.set(i, treeColor(i));
+        crowns.setColorAt(n, color.set(colors.get(i)));
       });
       trunks.count = crowns.count = shown.length;
       trunks.instanceMatrix.needsUpdate = crowns.instanceMatrix.needsUpdate = true;
@@ -2588,7 +2751,7 @@
       instanceOf = new Map(shown.map((i, n) => [i, n]));
       baseColors = colors;
       scene3.background = new THREE.Color(resolveColor('var(--surface-1)'));
-      const filtered = site.speciesSel.size > 0 || site.floorSel.size > 0;
+      const filtered = site.speciesSel.size > 0 || site.floorSel.size > 0 || (scheme && site.bandSel.size > 0);
       $('site3dOverlay').innerHTML = `<span>${fixed(shown.length, 0)} trees · ${fixed(floorsShown, 0)} planting areas` +
         `${scenario.years != null ? ' · ' + fixed(scenario.years, 0) + ' years' : ''}${filtered ? ' · filtered' : ''}</span>`;
       // A clicked element stays picked across scenarios and years while it's shown, its card
@@ -2614,6 +2777,17 @@
       return hit.object.userData.index != null ? { kind: 'floor', index: hit.object.userData.index } : null;
     }
 
+    /** The element's value and band in the scheme in use, as a card line ('' when the scheme doesn't colour it). */
+    function schemeLine(kind, index) {
+      const scheme = activeScheme();
+      const rule = ruleOf(scheme, kind, index);
+      if (rule == null) return '';
+      const value = (kind === 'tree' ? scheme.treeValues : scheme.floorValues)?.[index];
+      const band = rule >= 0 ? scheme.rules[rule].label : 'not coloured';
+      return `<br><span class="k">${escapeAttr(schemeLabel(scheme))}</span> ` +
+        (value != null ? `${schemeValue(value)}${scheme.unit ? ' ' + escapeAttr(scheme.unit) : ''} · ` : '') + escapeAttr(band);
+    }
+
     function describe(el) {
       const { scene, scenario } = site.current;
       const option = (o) => escapeAttr(o || 'Main model');
@@ -2624,14 +2798,14 @@
           `<span class="k">Type</span> ${escapeAttr(t.type || '—')}<br>` +
           `<span class="k">Height</span> ${fixed(trunkH + crownH, 1)} m · <span class="k">crown</span> ⌀ ${fixed(crownR * 2, 1)} m<br>` +
           `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[t.phaseRole] || t.phaseRole || '—')}<br>` +
-          `<span class="k">Option</span> ${option(t.designOption)}`;
+          `<span class="k">Option</span> ${option(t.designOption)}` + schemeLine('tree', el.index);
       }
       const f = scene.floors[el.index];
       return `<b>${escapeAttr(floorKey(f))}</b>` +
         `<span class="k">Type</span> ${escapeAttr(f.type || '—')}<br>` +
         `<span class="k">Area</span> ${fixed(f.areaM2, 0)} m²${f.holes ? ` · ${fixed(f.holes, 0)} hole${f.holes === 1 ? '' : 's'}` : ''}<br>` +
         `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[f.phaseRole] || f.phaseRole || '—')}<br>` +
-        `<span class="k">Option</span> ${option(f.designOption)}`;
+        `<span class="k">Option</span> ${option(f.designOption)}` + schemeLine('floor', el.index);
     }
 
     let hoverFrame = 0, lastMove = null;

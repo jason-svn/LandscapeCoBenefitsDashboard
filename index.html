@@ -924,7 +924,9 @@
   // of local files from a file:// origin, so a page opened as a file asks for the file to be dropped.
   $('sampleBtn').addEventListener('click', async () => {
     try {
-      const response = await fetch('sample-data/example-export.json');
+      // Check with the server each time (a 304 when unchanged): Pages lets browsers reuse it for 10 min,
+      // so an updated sample would otherwise still show the old numbers.
+      const response = await fetch('sample-data/example-export.json', { cache: 'no-cache' });
       if (!response.ok) throw new Error(response.status + ' ' + response.statusText);
       applyData(await response.json());
     } catch (err) {

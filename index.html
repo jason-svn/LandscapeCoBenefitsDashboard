@@ -44,8 +44,8 @@
     --cat-5: #b491b0; --cat-6: #74ada4; --cat-7: #b3a184; --cat-8: #cf8b96;
     /* Swim-lane washes and their label inks: the desktop app's LimLane* brushes (SharedUI/Styles.xaml). */
     --lane-green: rgba(23,107,43,0.086); --lane-blue: rgba(47,111,176,0.086);
-    --lane-amber: rgba(163,106,0,0.10); --lane-grey: rgba(88,99,89,0.07);
-    --lane-green-ink: #176b2b; --lane-blue-ink: #2f6fb0; --lane-amber-ink: #a36a00; --lane-grey-ink: #586359;
+    --lane-amber: rgba(163,106,0,0.10); --lane-grey: rgba(88,99,89,0.07); --lane-violet: rgba(110,84,170,0.08);
+    --lane-green-ink: #176b2b; --lane-blue-ink: #2f6fb0; --lane-amber-ink: #a36a00; --lane-grey-ink: #586359; --lane-violet-ink: #6e54aa; --mark-stroke: rgba(0,0,0,0.45);
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -62,8 +62,8 @@
       --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
       --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
       --lane-green: rgba(48,154,69,0.20); --lane-blue: rgba(62,134,204,0.20);
-      --lane-amber: rgba(201,138,0,0.20); --lane-grey: rgba(180,194,183,0.12);
-      --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-grey-ink: #b4c2b7;
+      --lane-amber: rgba(201,138,0,0.20); --lane-grey: rgba(180,194,183,0.12); --lane-violet: rgba(150,125,215,0.18);
+      --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-grey-ink: #b4c2b7; --lane-violet-ink: #c3b1f2; --mark-stroke: rgba(255,255,255,0.6);
     }
   }
   :root[data-theme="dark"] {
@@ -80,8 +80,8 @@
     --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
     --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
     --lane-green: rgba(48,154,69,0.20); --lane-blue: rgba(62,134,204,0.20);
-    --lane-amber: rgba(201,138,0,0.20); --lane-grey: rgba(180,194,183,0.12);
-    --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-grey-ink: #b4c2b7;
+    --lane-amber: rgba(201,138,0,0.20); --lane-grey: rgba(180,194,183,0.12); --lane-violet: rgba(150,125,215,0.18);
+    --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-grey-ink: #b4c2b7; --lane-violet-ink: #c3b1f2; --mark-stroke: rgba(255,255,255,0.6);
   }
 
   * { box-sizing: border-box; }
@@ -411,6 +411,17 @@
   .lt-row.flash .lt-cell { background: color-mix(in srgb, var(--gold) 32%, transparent); opacity: 1; }
   .lt-row.muted .lt-cell { color: var(--text-muted); }
   .lane-table .lane.grey { background: var(--lane-grey); }
+  .lane-table .lane.violet { background: var(--lane-violet); }
+  /* --- Year at a glance (schema 11: each species' months in flower and fruit, and its colours) --- */
+  .pheno .lt-cell.m { padding: 3px 2px; text-align: center; }
+  .pheno .lt-cell.m .bg { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 26px; border-radius: 5px; }
+  .pheno svg { display: block; overflow: visible; flex: none; }
+  .pheno svg .o, .pheno-legend svg .o { stroke: var(--mark-stroke); stroke-width: 0.9; }
+  .pheno .lt-cell.fruit { display: flex; align-items: center; gap: 6px; }
+  .pheno-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+  .pheno-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .pheno-legend .season { width: 18px; height: 12px; border-radius: 3px; background: linear-gradient(90deg, #9cc95a 0 25%, #3f7a3a 25% 50%, #d9a441 50% 75%, #8a7d70 75%); opacity: 0.7; }
+  .lt-group.violet { color: var(--lane-violet-ink); }
   .lt-group.grey { color: var(--lane-grey-ink); }
   .lane-table.static .lt-row { cursor: default; }
   .lane-table.static .lt-row:hover .lt-cell { background: none; }
@@ -681,6 +692,17 @@
           <div class="lane-table static" id="speciesTable"></div>
         </div>
       </div>
+    </div>
+
+    <div class="panel" id="phenologyPanel" style="display:none;">
+      <div class="panel-head">
+        <div>
+          <h3>Year at a glance</h3>
+          <div class="panel-sub" id="phenologySub">Each species’ months in flower and in fruit, every month tinted with its colour that season</div>
+        </div>
+      </div>
+      <div class="table-scroll"><div class="lane-table static pheno" id="phenologyTable"></div></div>
+      <div class="pheno-legend" id="phenologyLegend"></div>
     </div>
 
     <div class="panel">
@@ -1117,6 +1139,7 @@
     renderCostDonut(isAnnual, t, currency);
     renderPollutantBars(pollutants);
     renderSpecies(scenario.species || [], isAnnual, currency);
+    renderPhenology(scenario.species || []);
     renderSiteKpi(scenario.siteKpi || {}, t.treeCount ?? 0);
     renderBng(scenario.bng);
     renderFloorTable(scenario.floorTypes || [], currency);
@@ -1743,6 +1766,96 @@
     state.speciesSlots = new Map([...totals].sort((a, b) => b[1] - a[1]).map(([code], i) => [code, i]));
     state.speciesSlotsFor = data;
     return state.speciesSlots;
+  }
+
+  // ---- Year at a glance (schema 11 `species[].phenology`) ----
+  // Each species' months in flower and in fruit, every month tinted with its colour that season
+  // (spring Mar-May, summer Jun-Aug, autumn Sep-Nov, winter Dec-Feb). The flower mark is in the
+  // flowers' colour; the fruit mark, its shape the kind of fruit, in the fruit's. Marks are outlined
+  // so a white flower still shows.
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+  const seasonOf = (m) => (m >= 3 && m <= 5 ? 0 : m >= 6 && m <= 8 ? 1 : m >= 9 && m <= 11 ? 2 : 3);
+  const DEFAULT_FLOWER = '#8c7bc4', DEFAULT_FRUIT = '#8c6b4a';
+  function phenoMark(kind, colour) {
+    const c = escapeAttr(colour);
+    const svg = (w, h, body) => `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${body}</svg>`;
+    const star = Array.from({ length: 12 }, (_, i) => {
+      const a = (i * 30 - 90) * Math.PI / 180, r = i % 2 ? 2.6 : 6;
+      return `${(6 + r * Math.cos(a)).toFixed(2)},${(6 + r * Math.sin(a)).toFixed(2)}`;
+    }).join(' ');
+    switch (kind) {
+      case 'Flower':
+        return svg(13, 13, [0, 1, 2, 3, 4].map(i => {
+          const a = (i * 72 - 90) * Math.PI / 180;
+          return `<circle class="o" cx="${(6.5 + 3.4 * Math.cos(a)).toFixed(2)}" cy="${(6.5 + 3.4 * Math.sin(a)).toFixed(2)}" r="2.9" fill="${c}"/>`;
+        }).join(''));
+      case 'Nut': case 'Acorn': return svg(8, 11, `<ellipse class="o" cx="4" cy="5.5" rx="3.6" ry="5" fill="${c}"/>`);
+      case 'Samara': return svg(10, 11, `<polygon class="o" points="5,0 10,5.5 5,11 0,5.5" fill="${c}"/>`);
+      case 'Cone': return svg(10, 11, `<polygon class="o" points="5,0 10,11 0,11" fill="${c}"/>`);
+      case 'Pod': case 'Capsule': return svg(13, 6, `<rect class="o" x="0.5" y="0.5" width="12" height="5" rx="2.5" fill="${c}"/>`);
+      case 'Catkin': return svg(5, 12, `<rect class="o" x="0.5" y="0.5" width="4" height="11" rx="2" fill="${c}"/>`);
+      case 'Seed head': return svg(12, 12, `<polygon class="o" points="${star}" fill="${c}"/>`);
+      default: return svg(10, 10, `<circle class="o" cx="5" cy="5" r="4.5" fill="${c}"/>`);
+    }
+  }
+
+  function renderPhenology(species) {
+    const panel = $('phenologyPanel');
+    const rows = species.filter(s => s.phenology).sort((a, b) => (b.treeCount ?? 0) - (a.treeCount ?? 0));
+    panel.style.display = rows.length ? 'block' : 'none';
+    if (!rows.length) return;
+
+    const host = $('phenologyTable');
+    host.style.gridTemplateColumns = 'minmax(170px, 1.6fr) 64px repeat(12, minmax(38px, 1fr)) minmax(96px, 1fr)';
+    host.style.minWidth = '860px';
+    const span = rows.length + 3;
+    const at = (row, col) => `grid-row:${row};grid-column:${col}`;
+    let html = `<div class="lane violet" style="grid-row:1 / span ${span};grid-column:3 / 16"></div>`;
+    html += `<div class="lt-group violet" style="${at(1, '3 / 16')}">Flower, fruit and season</div>`;
+    html += `<div class="lt-head" style="${at(2, 1)}">Species<span class="u">code · common name</span></div>`;
+    html += `<div class="lt-head num" style="${at(2, 2)}">Trees<span class="u">count</span></div>`;
+    html += MONTHS.map((m, i) => `<div class="lt-head" style="${at(2, i + 3)};text-align:center">${m}</div>`).join('');
+    html += `<div class="lt-head" style="${at(2, 15)}">Fruit</div>`;
+
+    const kinds = new Map();
+    rows.forEach((s, n) => {
+      const p = s.phenology, row = n + 3;
+      const flowers = new Set(p.flowerMonths || []), fruit = new Set(p.fruitMonths || []);
+      const fruitType = p.fruitType || (fruit.size ? 'Fruit' : null);
+      const flowerHex = p.flower ? p.flower.hex : DEFAULT_FLOWER, fruitHex = p.fruit ? p.fruit.hex : DEFAULT_FRUIT;
+      if (fruitType) kinds.set(fruitType, fruitHex);
+      const name = `${s.speciesCode || '—'} · ${s.commonName || s.speciesCode || 'Unassigned'}`;
+      const swatch = `<span class="species-dot" style="background:${resolveColor(speciesColor(s.speciesCode || '—'))}"></span>`;
+      html += `<div class="lt-row" data-key="${escapeAttr(s.speciesCode || '')}">`;
+      html += `<div class="lt-cell name" style="${at(row, 1)}" title="${escapeAttr(name)}">${swatch}<span class="t">${escapeAttr(name)}</span></div>`;
+      html += `<div class="lt-cell num" style="${at(row, 2)}">${fixed(s.treeCount ?? 0, 0)}</div>`;
+      for (let m = 1; m <= 12; m++) {
+        const season = (p.seasons || [])[seasonOf(m)];
+        const tip = [`${MONTHS[m - 1]} · ${SEASONS[seasonOf(m)]}${season ? ': ' + season.name : ''}`];
+        let marks = '';
+        if (flowers.has(m)) { marks += phenoMark('Flower', flowerHex); tip.push('In flower' + (p.flower ? ': ' + p.flower.name : '')); }
+        if (fruit.has(m)) { marks += phenoMark(fruitType, fruitHex); tip.push(fruitType + (p.fruit ? ': ' + p.fruit.name : '')); }
+        const tint = season ? `background:color-mix(in srgb, ${escapeAttr(season.hex)} 50%, transparent)` : '';
+        html += `<div class="lt-cell m" style="${at(row, m + 2)}" title="${escapeAttr(tip.join('\n'))}"><div class="bg" style="${tint}">${marks}</div></div>`;
+      }
+      html += `<div class="lt-cell fruit" style="${at(row, 15)}" title="${escapeAttr(p.fruit ? p.fruit.name : '')}">${fruitType ? phenoMark(fruitType, fruitHex) + escapeAttr(fruitType) : '—'}</div>`;
+      html += '</div>';
+    });
+
+    const totalRow = rows.length + 3;
+    const inFlower = (m) => rows.filter(s => (s.phenology.flowerMonths || []).includes(m)).length;
+    const inFruit = (m) => rows.filter(s => (s.phenology.fruitMonths || []).includes(m)).length;
+    html += `<div class="lt-row muted"><div class="lt-cell" style="${at(totalRow, 1)};font-weight:600">In flower / in fruit</div><div class="lt-cell" style="${at(totalRow, 2)}"></div>`;
+    for (let m = 1; m <= 12; m++) html += `<div class="lt-cell" style="${at(totalRow, m + 2)};text-align:center">${inFlower(m)} / ${inFruit(m)}</div>`;
+    html += `<div class="lt-cell" style="${at(totalRow, 15)}"></div></div>`;
+    host.innerHTML = html;
+
+    const covered = MONTHS.filter((_, i) => inFlower(i + 1) || inFruit(i + 1)).length;
+    $('phenologySub').textContent = `${covered} of 12 months with something in flower or in fruit · each month tinted with the species' colour that season · hover a month for its colours`;
+    $('phenologyLegend').innerHTML = `<span>${phenoMark('Flower', DEFAULT_FLOWER)} in flower, in its colour</span>` +
+      [...kinds].map(([kind, hex]) => `<span>${phenoMark(kind, hex)} ${escapeAttr(kind.toLowerCase())}</span>`).join('') +
+      '<span><span class="season"></span> spring · summer · autumn · winter colour</span>';
   }
 
   function renderSpecies(species, isAnnual, currency) {

@@ -69,7 +69,9 @@ the bundled example (`sample-data/example-export.json`): a schema 10 export of
 the LIM sandbox model (LAN_LIM Arboris_EWR Sandbox) with its 3D scene and the
 colour schemes of its Revit views — three schemes (A, B and C, each with the
 whole existing site, retained or demolished) and the existing site — made on
-2026-10-25 by the export code of LandscapeDataManager v1.8.0. It is 1.6 MB, so
+2026-10-26 by the export code of LandscapeDataManager v1.8.0, after its planting
+areas were recalculated with their cost saved and every tree and planting-area
+type was synced from Airtable (bloom months, maintenance rates). It is 1.6 MB, so
 the page fetches it when the button is clicked rather than carrying it inline;
 that works on GitHub Pages or any web server, but a page opened as a local file
 can't fetch it, so drop the file onto the page instead.

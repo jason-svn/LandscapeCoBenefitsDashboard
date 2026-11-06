@@ -13,7 +13,7 @@ accent for money): carbon / storm water / air-pollution metrics translated
 into everyday equivalents (paired cards — raw value on the left, its everyday
 equivalent on the right — joined by a wavy connector), an abstract country map
 with the project's specific region highlighted, a "most impactful tree"
-highlight card (top species by carbon sequestered, with a real reference
+highlight card (top species by carbon, water or pollutants, with a real reference
 photo), and a pastel categorical palette (distinct from the page's brand
 green) for anything that identifies categories rather than magnitude: the
 cost-savings donut, the species-composition donut, per-species colors shared
@@ -53,7 +53,8 @@ is sent anywhere (see "3D site" below).
 4. If the project uses growth-year design options, pick a stage (e.g. **5 yr
    / 10 yr / 15 yr / 20 yr / 25 yr**) from the tabs at top — it defaults to
    whichever design option Revit has flagged Primary. Toggle **Annual /
-   Lifetime**, and the species chart between **Chart / Table** view. Click
+   Lifetime**, rank species by **Carbon / Water / Pollutants**, and switch the
+   species result between **Chart / Pie / Table**. Click
    any translation card (Avoided water run-off, CO₂, Air pollutants, Air
    generated, Cost saved) to make the growth charts below plot that metric.
 5. With a schema 9 export, the **3D site** panel shows the scenario's trees
@@ -78,8 +79,9 @@ can't fetch it, so drop the file onto the page instead.
 
 ## What's in the export
 
-The JSON schema this page expects (schema version 10; versions 2 to 9 still
-load, without the panels their fields feed) is produced by
+The JSON schema this page expects (schema version 12; versions 2 to 11 still
+load, with carbon-to-CO₂e fallbacks and without panels their missing fields
+feed) is produced by
 `DashboardJsonExportService` in the
 [LandscapeDataManager](https://github.com/jason-svn/LandscapeDataManager)
 repo (`src/WWP.LandscapeDataManager.App.Dashboard`). All mass/volume figures
@@ -91,7 +93,7 @@ Top-level shape:
 
 ```jsonc
 {
-  "schemaVersion": 10,
+  "schemaVersion": 12,
   "project": { "title", "currency", "location": { "latitude", "longitude", "placeName" }, "generatedAt" },
   "scene": { /* schema 9, optional: the trees and planting areas in 3D — see "3D site" below */ },
   "scenarios": [
@@ -111,6 +113,17 @@ Top-level shape:
   ]
 }
 ```
+
+**Carbon and run-off rows (schema 12).** Species entries add
+`co2EquivalentAnnualKg`, `co2EquivalentLifetimeKg`,
+`runoffAvoidedAnnualM3`, and `runoffAvoidedLifetimeM3`; each `floorTypes[]`
+entry adds `co2EquivalentAnnualKg`; and `totals` adds
+`floorCo2EquivalentAnnualKg`. Older exports still load: species and floor
+CO₂e is calculated as the existing carbon mass × 3.67. There is no defensible
+pre-schema-12 species run-off fallback, so those table cells show “—” and the
+Water species ranking asks for a new export from LIM 1.11 or later.
+`floorTypes[].isHardSurface` groups landscape tables into green space and hard
+surfaces; older exports fall back to `totalGwp > 0`.
 
 **BNG follows the metric's on-site headline.** Each floor's Revit phases decide
 its row of the Statutory Biodiversity Metric: floors created in the project's
@@ -260,8 +273,9 @@ erroring.
 
 ## Most impactful tree
 
-Whichever species ranks #1 by carbon sequestered (the same ranking the "Top
-species" chart uses) gets its own highlight card with a real reference photo,
+Whichever species ranks #1 by the selected Carbon, Water or Pollutants metric
+(the same ranking the "Top species" chart uses) gets its own highlight card
+with a real reference photo,
 not a decorative icon — looked up by common name via
 [Wikipedia's page-summary API](https://en.wikipedia.org/api/rest_v1/) (free,
 no key, reliable CORS). Common tree names resolve well in practice, and a

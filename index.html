@@ -101,6 +101,17 @@
     display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
     padding: 20px 0 16px;
   }
+  /* The scenario and growth-year controls stay in reach while scrolling, on screens with room
+     for them; a phone keeps the header in the flow, where it would cover too much. */
+  @media (min-width: 700px) and (min-height: 560px) {
+    header.top {
+      position: sticky; top: 0; z-index: 40;
+      background: var(--page);
+      padding: 12px 0 10px;
+      box-shadow: 0 1px 0 var(--border), 0 6px 12px -10px rgba(0,0,0,0.25);
+    }
+  }
+  @media print { header.top { position: static; box-shadow: none; } }
   header.top .brand { display: flex; align-items: center; gap: 12px; }
   header.top .brand-mark {
     width: 34px; height: 34px; flex: none; border-radius: 9px; background: var(--brand-700);
@@ -404,7 +415,7 @@
   .lt-group.impact { color: var(--lane-impact-ink); }
   .lt-head { grid-row: 2; align-self: end; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; line-height: 15px;
     color: var(--lane-grey-ink); padding: 5px 10px 8px; }
-  .lt-head .u { display: block; font-weight: 500; opacity: 0.8; white-space: nowrap; }
+  .lt-head .u { display: block; font-weight: 500; opacity: 0.8; white-space: pre; } /* a unit may add a line: "per m²" */
   .lt-head.num, .lt-cell.num { text-align: right; }
   .lt-row { display: contents; cursor: pointer; }
   .lt-cell { padding: 7px 10px; border-top: 1px solid var(--gridline); font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -511,6 +522,11 @@
       <div class="toggle-tabs" id="periodTabs" style="display:none;">
         <button data-period="annual" class="active">Annual</button>
         <button data-period="lifetime">Lifetime</button>
+      </div>
+      <div class="toggle-tabs" id="basisTabs" style="display:none;" aria-label="Species and landscape-type figures"
+           title="Species and landscape-type tables: the site's totals, or what one tree (each species' totals ÷ its trees) and one m² of each landscape type does">
+        <button data-basis="site" class="active">Site totals</button>
+        <button data-basis="unit">Per tree / m²</button>
       </div>
       <button class="btn ghost" id="themeToggle" title="Toggle theme">🌓 Theme</button>
       <button class="btn" id="changeFileBtn" style="display:none;">Load different file</button>
@@ -873,7 +889,7 @@
   // With no growth year there's no span to multiply by, so planting areas add nothing to lifetime.
   const metricLifetime = (metric, s) => metric.treeLifetime(s.totals || {}) + metric.floor(floorYear(s)) * (s.years ?? 0);
 
-  const state = { data: null, period: 'annual', speciesView: 'chart', speciesMetric: 'carbon', pollutantView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
+  const state = { data: null, period: 'annual', perUnit: false, speciesView: 'chart', speciesMetric: 'carbon', pollutantView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
 
   // ISO 3166-1 alpha-2 -> alpha-3, standard reference table (stable, does not change) — bridges the
   // reverse-geocoder's alpha-2 country code to geoBoundaries' alpha-3 lookup key.
@@ -938,15 +954,27 @@
   const floorTypeCo2Annual = (x) => x.co2EquivalentAnnualKg ?? ((x.carbonSequesteredAnnualKg ?? 0) * CARBON_TO_CO2);
   const floorCo2Annual = (x) => x.floorCo2EquivalentAnnualKg ?? ((x.floorCarbonSequesteredAnnualKg ?? 0) * CARBON_TO_CO2);
   const isHardSurface = (x) => typeof x.isHardSurface === 'boolean' ? x.isHardSurface : (x.totalGwp ?? 0) > 0;
-  const dashZero = (n, digits) => n == null || n === 0 ? '—' : fixed(n, digits);
-  // Money rounds to whole units before its sign and ink are picked, so a tiny net never reads "−0".
-  const wholeMoney = (n) => (n == null ? 0 : Math.round(n));
-  const valueSaved = (n) => { const v = wholeMoney(n); return { text: v ? fixed(v, 0) : '—', cls: v ? 'value-saved' : '' }; };
-  const valueCost = (n) => { const v = wholeMoney(n); return { text: v ? '−' + fixed(Math.abs(v), 0) : '—', cls: v ? 'value-cost' : '' }; };
-  const valueNet = (n) => {
-    const v = wholeMoney(n);
-    return { text: v ? (v < 0 ? '−' : '') + fixed(Math.abs(v), 0) : '—', cls: v > 0 ? 'value-net-positive' : v < 0 ? 'value-net-negative' : '' };
+  // A small figure (a per-m² rate, say) keeps three significant digits rather than rounding to 0.
+  const smallFixed = (n, digits) => Math.abs(n) >= 100 || Math.abs(n) * 10 ** (digits ?? 1) >= 100
+    ? fixed(n, digits)
+    : new Intl.NumberFormat(undefined, { maximumSignificantDigits: 3 }).format(n);
+  const dashZero = (n, digits) => n == null || n === 0 ? '—' : smallFixed(n, digits);
+  // Money rounds (to whole units, or cents per tree / m²) before its sign and ink are picked, so a
+  // tiny net never reads "−0".
+  const wholeMoney = (n, d = 0) => (n == null ? 0 : Math.round(n * 10 ** d) / 10 ** d);
+  const valueSaved = (n, d = 0) => { const v = wholeMoney(n, d); return { text: v ? fixed(v, d) : '—', cls: v ? 'value-saved' : '' }; };
+  const valueCost = (n, d = 0) => { const v = wholeMoney(n, d); return { text: v ? '−' + fixed(Math.abs(v), d) : '—', cls: v ? 'value-cost' : '' }; };
+  const valueNet = (n, d = 0) => {
+    const v = wholeMoney(n, d);
+    return { text: v ? (v < 0 ? '−' : '') + fixed(Math.abs(v), d) : '—', cls: v > 0 ? 'value-net-positive' : v < 0 ? 'value-net-negative' : '' };
   };
+  // Per tree / m² figures: a value shared over its trees or its area (unchanged when there's none).
+  const each = (value, count) => (state.perUnit && count > 0 && value != null ? value / count : value);
+  const perTreeUnit = () => (state.perUnit ? ' per tree' : '');
+  const perAreaUnit = () => (state.perUnit ? ' per m²' : '');
+  const moneyDigits = () => (state.perUnit ? 2 : 0);
+  // In a table header the "per tree" / "per m²" gets its own line under the unit.
+  const perLine = (suffix) => (suffix ? '\n' + suffix.trim() : '');
   // Escapes text from the exported file (scenario labels, species, LDS types, place names) for
   // both attributes and element content — Revit names can contain "<"/">" (e.g. "Baseline <primary>").
   function escapeAttr(s) {
@@ -971,6 +999,7 @@
     uploadPanel.style.display = 'block';
     $('changeFileBtn').style.display = 'none';
     $('periodTabs').style.display = 'none';
+    $('basisTabs').style.display = 'none';
     $('scenarioTabs').style.display = 'none';
     $('headerSub').textContent = 'Upload an exported JSON snapshot to begin.';
   });
@@ -1040,6 +1069,7 @@
     $('dashboard').style.display = 'block';
     $('changeFileBtn').style.display = 'inline-block';
     $('periodTabs').style.display = 'flex';
+    $('basisTabs').style.display = 'flex';
 
     renderScenarioTabs();
     renderAll();
@@ -1139,6 +1169,15 @@
     if (!btn) return;
     state.period = btn.dataset.period;
     [...$('periodTabs').children].forEach(b => b.classList.toggle('active', b === btn));
+    renderAll();
+  });
+
+  // Site totals, or per tree (species) and per m² (landscape types), in every species and type table.
+  $('basisTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-basis]');
+    if (!btn) return;
+    state.perUnit = btn.dataset.basis === 'unit';
+    [...$('basisTabs').children].forEach(b => b.classList.toggle('active', b === btn));
     renderAll();
   });
 
@@ -1970,17 +2009,21 @@
   };
 
   function renderSpecies(species, isAnnual, currency) {
-    const rows = species.map(s => ({
-      name: s.commonName || s.speciesCode || 'Unassigned',
-      code: s.speciesCode || '—',
-      trees: s.treeCount ?? 0,
-      carbon: isAnnual ? co2Annual(s) : co2Lifetime(s),
-      runoff: isAnnual ? s.runoffAvoidedAnnualM3 : s.runoffAvoidedLifetimeM3,
-      pollution: isAnnual ? (s.pollutionMassRemovedAnnualKg ?? 0) : (s.pollutionMassRemovedLifetimeKg ?? 0),
-      cost: isAnnual
-        ? (s.carbonCostSavedAnnual ?? 0) + (s.stormWaterCostSavedAnnual ?? 0) + (s.airPollutionCostSavedAnnual ?? 0)
-        : (s.carbonCostSavedLifetime ?? 0) + (s.stormWaterCostSavedLifetime ?? 0) + (s.airPollutionCostSavedLifetime ?? 0),
-    }));
+    // Per tree: each species' figures shared over its trees, so species rank by what one tree does.
+    const rows = species.map(s => {
+      const trees = s.treeCount ?? 0;
+      return {
+        name: s.commonName || s.speciesCode || 'Unassigned',
+        code: s.speciesCode || '—',
+        trees,
+        carbon: each(isAnnual ? co2Annual(s) : co2Lifetime(s), trees),
+        runoff: each(isAnnual ? s.runoffAvoidedAnnualM3 : s.runoffAvoidedLifetimeM3, trees),
+        pollution: each(isAnnual ? (s.pollutionMassRemovedAnnualKg ?? 0) : (s.pollutionMassRemovedLifetimeKg ?? 0), trees),
+        cost: each(isAnnual
+          ? (s.carbonCostSavedAnnual ?? 0) + (s.stormWaterCostSavedAnnual ?? 0) + (s.airPollutionCostSavedAnnual ?? 0)
+          : (s.carbonCostSavedLifetime ?? 0) + (s.stormWaterCostSavedLifetime ?? 0) + (s.airPollutionCostSavedLifetime ?? 0), trees),
+      };
+    });
 
     // Assigned from the file's slots (see speciesSlots), not recomputed per view, so the same species
     // is always the same color in the top-8 chart, the table and the 3D site, in every scenario.
@@ -1995,8 +2038,18 @@
     waterButton.disabled = !hasSpeciesRunoff;
     waterButton.title = hasSpeciesRunoff ? '' : 'Re-export from LIM 1.11 or later to rank by water';
     $('speciesMetricTabs').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.metric === state.speciesMetric));
-    $('speciesTitle').textContent = 'Top species by ' + metric.heading;
-    $('topTreeSub').textContent = 'Top species by ' + metric.heading;
+    $('speciesTitle').textContent = 'Top species by ' + metric.heading + perTreeUnit();
+    $('topTreeSub').textContent = 'Top species by ' + metric.heading + perTreeUnit();
+    // Shares of per-tree figures add up to nothing meaningful: per tree, the pie gives way to the chart.
+    const pieButton = $('speciesViewTabs').querySelector('[data-view="pie"]');
+    pieButton.disabled = state.perUnit;
+    pieButton.title = state.perUnit ? 'A pie of per-tree figures adds up to nothing: switch back to Site totals' : '';
+    if (state.perUnit && state.speciesView === 'pie') {
+      state.speciesView = 'chart';
+      [...$('speciesViewTabs').children].forEach(b => b.classList.toggle('active', b.dataset.view === 'chart'));
+      $('speciesBars').style.display = 'block';
+      $('speciesPieWrap').style.display = 'none';
+    }
 
     rows.sort((a, b) => (b[metric.key] ?? 0) - (a[metric.key] ?? 0));
     const top = rows.slice(0, 8);
@@ -2005,12 +2058,12 @@
       <div class="bar-row">
         <div class="name" title="${escapeAttr(r.name)}"><span class="species-dot" style="background:${r.color}"></span>${escapeAttr(r.name)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${((r[metric.key] ?? 0) / max * 100).toFixed(1)}%;background:${r.color}"></div></div>
-        <div class="val">${fixed(r[metric.key], metric.key === 'pollution' ? 2 : 1)} ${metric.barUnit}</div>
+        <div class="val">${smallFixed(r[metric.key] ?? 0, metric.key === 'pollution' ? 2 : 1)} ${metric.barUnit}${perTreeUnit()}</div>
       </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">No species data in this export.</p>';
 
-    const per = isAnnual ? '/yr' : ' lifetime';
+    const per = (isAnnual ? '/yr' : ' lifetime') + perLine(perTreeUnit());
     if (rows.length) {
-      renderLaneTable($('speciesTable'), 'Species', [
+      renderLaneTable($('speciesTable'), 'Species', ...withoutTotals(1, [
         { head: 'Trees', unit: 'count' },
         { head: 'CO₂ sequestered', unit: 'kg CO₂e' + per }, { head: 'Run-off', unit: 'm³' + per },
         { head: 'Pollutants', unit: 'kg' + per }, { head: 'Cost saved', unit: currencySymbol(currency) + per },
@@ -2019,7 +2072,7 @@
         { name: 'Benefits', color: 'blue', from: 1, to: 3 },
         { name: 'Value', color: 'amber', from: 4, to: 4 },
       ], rows.map(r => ({ key: r.code, name: r.name, swatch: `<span class="species-dot" style="background:${r.color}"></span>`,
-        values: [fixed(r.trees, 0), dashZero(r.carbon, 1), dashZero(r.runoff, 1), dashZero(r.pollution, 2), valueSaved(r.cost)] })), { interactive: false, minWidth: 620 });
+        values: [fixed(r.trees, 0), dashZero(r.carbon, 1), dashZero(r.runoff, 1), dashZero(r.pollution, 2), valueSaved(r.cost, moneyDigits())] }))), { interactive: false, minWidth: 620 });
     } else {
       $('speciesTable').innerHTML = '<div class="board-empty">No species data in this export.</div>';
     }
@@ -2121,15 +2174,15 @@
     }
     panel.style.display = 'block';
 
-    const per = state.period === 'annual' ? '/yr' : ' lifetime';
+    const per = (state.period === 'annual' ? '/yr' : ' lifetime') + perTreeUnit();
     $('topTreeName').textContent = topRow.name;
     $('topTreeBadge').textContent = metric.badge;
     $('topTreeStats').innerHTML = `
       <div class="top-tree-stat"><div class="v">${fixed(topRow.trees, 0)}</div><div class="l">Trees</div></div>
-      <div class="top-tree-stat"><div class="v">${fixed(topRow.carbon, 1)} kg CO₂e${per}</div><div class="l">CO₂ sequestered</div></div>
-      <div class="top-tree-stat"><div class="v">${fixed(topRow.runoff, 1)} m³${per}</div><div class="l">Run-off avoided</div></div>
-      <div class="top-tree-stat"><div class="v">${fixed(topRow.pollution, 2)} kg${per}</div><div class="l">Pollutants removed</div></div>
-      <div class="top-tree-stat"><div class="v">${money(topRow.cost, currency)}${per}</div><div class="l">Cost saved</div></div>`;
+      <div class="top-tree-stat"><div class="v">${smallFixed(topRow.carbon ?? 0, 1)} kg CO₂e${per}</div><div class="l">CO₂ sequestered</div></div>
+      <div class="top-tree-stat"><div class="v">${smallFixed(topRow.runoff ?? 0, 1)} m³${per}</div><div class="l">Run-off avoided</div></div>
+      <div class="top-tree-stat"><div class="v">${smallFixed(topRow.pollution ?? 0, 2)} kg${per}</div><div class="l">Pollutants removed</div></div>
+      <div class="top-tree-stat"><div class="v">${state.perUnit ? currencySymbol(currency) + fixed(topRow.cost, 2) : money(topRow.cost, currency)}${per}</div><div class="l">Cost saved</div></div>`;
     $('topTreePhoto').innerHTML = '<div class="region-spinner"></div>';
     $('topTreeSource').textContent = '';
 
@@ -2359,14 +2412,24 @@
     ].filter(g => g.floors.length);
   }
 
-  function floorTableValues(x) {
-    return [fixed(x.count, 0), fixed(x.area, 0), dashZero(x.co2, 1), dashZero(x.runoff, 1), dashZero(x.pollution, 2),
-      dashZero(x.oxygen, 1), dashZero(x.embodied, 0), valueSaved(x.saved), valueCost(x.maintenance), valueNet(x.net)];
+  /** Per m²: every figure but the count and the area divided by the area (a subtotal by its group's area). */
+  function perArea(x) {
+    if (!state.perUnit || !(x.area > 0)) return x;
+    const out = { ...x };
+    for (const key of ['co2', 'runoff', 'pollution', 'oxygen', 'embodied', 'saved', 'maintenance', 'net']) out[key] = x[key] / x.area;
+    return out;
   }
 
-  function floorBoardValues(x) {
+  function floorTableValues(figures) {
+    const x = perArea(figures), d = moneyDigits();
     return [fixed(x.count, 0), fixed(x.area, 0), dashZero(x.co2, 1), dashZero(x.runoff, 1), dashZero(x.pollution, 2),
-      dashZero(x.embodied, 0), valueSaved(x.saved), valueCost(x.maintenance), valueNet(x.net)];
+      dashZero(x.oxygen, 1), dashZero(x.embodied, 0), valueSaved(x.saved, d), valueCost(x.maintenance, d), valueNet(x.net, d)];
+  }
+
+  function floorBoardValues(figures) {
+    const x = perArea(figures), d = moneyDigits();
+    return [fixed(x.count, 0), fixed(x.area, 0), dashZero(x.co2, 1), dashZero(x.runoff, 1), dashZero(x.pollution, 2),
+      dashZero(x.embodied, 0), valueSaved(x.saved, d), valueCost(x.maintenance, d), valueNet(x.net, d)];
   }
 
   function renderFloorTable(floors, currency, totals) {
@@ -2386,12 +2449,13 @@
       return;
     }
     const symbol = currencySymbol(currency);
+    const m2 = perLine(perAreaUnit());
     const columns = [
       { head: 'Floors', unit: 'count' }, { head: 'Area', unit: 'm²' },
-      { head: 'CO₂ sequestered', unit: 'kg CO₂e/yr' }, { head: 'Run-off', unit: 'm³/yr' },
-      { head: 'Pollutants', unit: 'kg/yr' }, { head: 'O₂ produced', unit: 'kg/yr' },
-      { head: 'Embodied carbon', unit: 'kg CO₂e once' },
-      { head: 'Cost saved', unit: symbol + '/yr' }, { head: 'Maintenance', unit: symbol + '/yr' }, { head: 'Net', unit: symbol + '/yr' },
+      { head: 'CO₂ sequestered', unit: 'kg CO₂e/yr' + m2 }, { head: 'Run-off', unit: 'm³/yr' + m2 },
+      { head: 'Pollutants', unit: 'kg/yr' + m2 }, { head: 'O₂ produced', unit: 'kg/yr' + m2 },
+      { head: 'Embodied carbon', unit: 'kg CO₂e once' + m2 },
+      { head: 'Cost saved', unit: symbol + '/yr' + m2 }, { head: 'Maintenance', unit: symbol + '/yr' + m2 }, { head: 'Net', unit: symbol + '/yr' + m2 },
     ];
     // The landscape type's swatch is the color it has in the 3D site.
     const swatch = (f) => `<span class="floor-swatch" style="background:${hexCss(floorColor(f))}"></span>`;
@@ -2402,12 +2466,12 @@
         values: floorTableValues(floorFigures(f)) })));
       rows.push({ name: group.name + ' subtotal', swatch: '', subtotal: true, values: floorTableValues(sumFloorFigures(group.floors)) });
     }
-    renderLaneTable(host, 'Landscape type', columns, [
+    renderLaneTable(host, 'Landscape type', ...withoutTotals(2, columns, [
       { name: 'Area', color: 'green', from: 0, to: 1 },
       { name: 'Benefits', color: 'blue', from: 2, to: 5 },
       { name: 'Impact', color: 'impact', from: 6, to: 6 },
       { name: 'Value', color: 'amber', from: 7, to: 9 },
-    ], rows, { interactive: false, minWidth: 1120 });
+    ], rows), { interactive: false, minWidth: state.perUnit ? 900 : 1120 });
   }
 
   // ---------------- 3D site and result board (schema 9) ----------------
@@ -2566,6 +2630,16 @@
    * the page's other tables pass false. A row value may be text or `{ text, cls }`, allowing callers
    * to add semantic ink without coupling the table renderer to a particular lane.
    */
+  /**
+   * Per tree / m², a table's leading count and area columns are site totals among per-unit figures:
+   * drop the first k columns, their lane, and each row's first k values.
+   */
+  function withoutTotals(k, columns, lanes, rows) {
+    if (!state.perUnit || k <= 0) return [columns, lanes, rows];
+    const shifted = lanes.filter(l => l.to >= k).map(l => ({ ...l, from: Math.max(0, l.from - k), to: l.to - k }));
+    return [columns.slice(k), shifted, rows.map(r => (r.values ? { ...r, values: r.values.slice(k) } : r))];
+  }
+
   function renderLaneTable(host, nameHead, columns, lanes, rows, { interactive = true, minWidth = null } = {}) {
     host.style.gridTemplateColumns = `minmax(150px, 1.7fr) repeat(${columns.length}, minmax(64px, 1fr))`;
     host.style.minWidth = minWidth == null ? '' : minWidth + 'px';
@@ -2616,13 +2690,16 @@
     // Same order as the species chart above (by carbon), so the colors run down the table in turn.
     const species = [...(scenario.species || [])].sort((a, b) => carbon(b) - carbon(a));
     const listed = new Set(species.map(s => s.speciesCode || 'Unassigned'));
+    const d = moneyDigits();
     const rows = species.map(s => {
       const key = s.speciesCode || 'Unassigned';
       const g = shown.get(key);
-      const saved = cost(s), maintenance = s.maintenanceCostAnnual ?? 0;
+      // Per tree: the species' figures over its trees, and the canopy over the trees in the 3D.
+      const n = s.treeCount ?? 0;
+      const saved = each(cost(s), n), maintenance = each(s.maintenanceCostAnnual ?? 0, n);
       return { key, name: s.commonName || key, swatch: dot(key),
-        values: [fixed(g ? g.count : 0, 0), fixed(g ? g.canopy : 0, 0), dashZero(carbon(s), 1), dashZero(runoff(s), 1), dashZero(pollution(s), 2),
-          valueSaved(saved), valueCost(maintenance), ...(isAnnual ? [valueNet(saved - maintenance)] : [])] };
+        values: [fixed(g ? g.count : 0, 0), dashZero(g ? each(g.canopy, g.count) : 0, 0), dashZero(each(carbon(s), n), 1), dashZero(each(runoff(s), n), 1),
+          dashZero(each(pollution(s), n), 2), valueSaved(saved, d), valueCost(maintenance, d), ...(isAnnual ? [valueNet(saved - maintenance, d)] : [])] };
     });
     // Trees in the 3D whose species has no figures (no i-Tree result) still get a row to filter by.
     for (const [key, g] of shown) {
@@ -2631,18 +2708,19 @@
     }
     const host = $('treeBoard');
     if (!rows.length) { host.innerHTML = '<div class="board-empty">No trees in this scenario.</div>'; return; }
-    const per = isAnnual ? '/yr' : ' lifetime';
-    renderLaneTable(host, 'Species', [
-      { head: 'Trees', unit: 'count' }, { head: 'Canopy', unit: 'm²' },
+    const each1 = perLine(perTreeUnit());
+    const per = (isAnnual ? '/yr' : ' lifetime') + each1;
+    renderLaneTable(host, 'Species', ...withoutTotals(1, [
+      { head: 'Trees', unit: 'count' }, { head: 'Canopy', unit: 'm²' + each1 },
       { head: 'CO₂ sequestered', unit: 'kg CO₂e' + per }, { head: 'Run-off', unit: 'm³' + per },
       { head: 'Pollutants', unit: 'kg' + per }, { head: 'Cost saved', unit: currencySymbol(currency) + per },
-      { head: 'Maintenance', unit: currencySymbol(currency) + '/yr' },
-      ...(isAnnual ? [{ head: 'Net', unit: currencySymbol(currency) + '/yr' }] : []),
+      { head: 'Maintenance', unit: currencySymbol(currency) + '/yr' + each1 },
+      ...(isAnnual ? [{ head: 'Net', unit: currencySymbol(currency) + '/yr' + each1 }] : []),
     ], [
       { name: 'In 3D', color: 'green', from: 0, to: 1 },
       { name: 'Benefits', color: 'blue', from: 2, to: 4 },
       { name: 'Value', color: 'amber', from: 5, to: isAnnual ? 7 : 6 },
-    ], rows, { minWidth: isAnnual ? 900 : 820 });
+    ], rows), { minWidth: isAnnual ? 900 : 820 });
   }
 
   function renderFloorBoard({ scene, floorIdx, scenario, currency }) {
@@ -2681,18 +2759,19 @@
         values: floorBoardValues(sumFloorFigures(group.entries.map(x => x.floor))) });
     }
     // Planting areas have annual figures only (the WWP sheet's rates), whichever period is showing.
-    renderLaneTable(host, 'Landscape type', [
+    const m2 = perLine(perAreaUnit());
+    renderLaneTable(host, 'Landscape type', ...withoutTotals(2, [
       { head: 'Areas', unit: 'count' }, { head: 'Area', unit: 'm²' },
-      { head: 'CO₂ sequestered', unit: 'kg CO₂e/yr' }, { head: 'Run-off', unit: 'm³/yr' },
-      { head: 'Pollutants', unit: 'kg/yr' }, { head: 'Embodied carbon', unit: 'kg CO₂e once' },
-      { head: 'Cost saved', unit: currencySymbol(currency) + '/yr' }, { head: 'Maintenance', unit: currencySymbol(currency) + '/yr' },
-      { head: 'Net', unit: currencySymbol(currency) + '/yr' },
+      { head: 'CO₂ sequestered', unit: 'kg CO₂e/yr' + m2 }, { head: 'Run-off', unit: 'm³/yr' + m2 },
+      { head: 'Pollutants', unit: 'kg/yr' + m2 }, { head: 'Embodied carbon', unit: 'kg CO₂e once' + m2 },
+      { head: 'Cost saved', unit: currencySymbol(currency) + '/yr' + m2 }, { head: 'Maintenance', unit: currencySymbol(currency) + '/yr' + m2 },
+      { head: 'Net', unit: currencySymbol(currency) + '/yr' + m2 },
     ], [
       { name: 'In 3D', color: 'green', from: 0, to: 1 },
       { name: 'Benefits', color: 'blue', from: 2, to: 4 },
       { name: 'Impact', color: 'impact', from: 5, to: 5 },
       { name: 'Value', color: 'amber', from: 6, to: 8 },
-    ], rows, { minWidth: 1020 });
+    ], rows), { minWidth: state.perUnit ? 820 : 1020 });
   }
 
   /** Marks the selected rows, and drops selections the scenario no longer has a row for. */

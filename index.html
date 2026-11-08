@@ -44,6 +44,7 @@
     --cat-1: #8cae8a; --cat-2: #7fa2c9; --cat-3: #d99b77; --cat-4: #d3b566;
     --cat-5: #b491b0; --cat-6: #74ada4; --cat-7: #b3a184; --cat-8: #cf8b96;
     /* Swim-lane washes and their label inks: the desktop app's LimLane* brushes (SharedUI/Styles.xaml). */
+    --lane-teal: rgba(30,130,125,0.10); --lane-teal-ink: #16736e;
     --lane-green: rgba(23,107,43,0.086); --lane-blue: rgba(47,111,176,0.086);
     --lane-amber: rgba(163,106,0,0.10); --lane-impact: rgba(164,81,43,0.09); --lane-grey: rgba(88,99,89,0.07); --lane-violet: rgba(110,84,170,0.08);
     --lane-green-ink: #176b2b; --lane-blue-ink: #2f6fb0; --lane-amber-ink: #a36a00; --lane-impact-ink: #914521; --lane-grey-ink: #586359; --lane-violet-ink: #6e54aa; --mark-ink: #262626; --mark-paper: #ffffff;
@@ -62,6 +63,7 @@
       --inactive: #454f43;
       --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
       --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
+      --lane-teal: rgba(70,170,160,0.20); --lane-teal-ink: #80d4ca;
       --lane-green: rgba(48,154,69,0.20); --lane-blue: rgba(62,134,204,0.20);
       --lane-amber: rgba(201,138,0,0.20); --lane-impact: rgba(232,147,106,0.16); --lane-grey: rgba(180,194,183,0.12); --lane-violet: rgba(150,125,215,0.18);
       --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-impact-ink: #f0a17b; --lane-grey-ink: #b4c2b7; --lane-violet-ink: #c3b1f2; --mark-ink: #ececec; --mark-paper: #1c201d;
@@ -80,6 +82,7 @@
     --inactive: #454f43;
     --cat-1: #7fae7c; --cat-2: #6f9dc4; --cat-3: #cf8f61; --cat-4: #c9a751;
     --cat-5: #a67aa2; --cat-6: #5fa89d; --cat-7: #a08e70; --cat-8: #c07986;
+    --lane-teal: rgba(70,170,160,0.20); --lane-teal-ink: #80d4ca;
     --lane-green: rgba(48,154,69,0.20); --lane-blue: rgba(62,134,204,0.20);
     --lane-amber: rgba(201,138,0,0.20); --lane-impact: rgba(232,147,106,0.16); --lane-grey: rgba(180,194,183,0.12); --lane-violet: rgba(150,125,215,0.18);
     --lane-green-ink: #8edb9b; --lane-blue-ink: #78b5ed; --lane-amber-ink: #f4be70; --lane-impact-ink: #f0a17b; --lane-grey-ink: #b4c2b7; --lane-violet-ink: #c3b1f2; --mark-ink: #ececec; --mark-paper: #1c201d;
@@ -405,6 +408,26 @@
   .lane-scroll { overflow-x: auto; max-width: 100%; min-width: 0; }
   .lane-table { display: grid; position: relative; isolation: isolate; font-size: 13px; min-width: 500px; }
   .lane-table .lane { border-radius: 10px; margin: 0 3px; z-index: -1; }
+  .detail-trigger { cursor: pointer; border-radius: 10px; transition: background .15s, box-shadow .15s; }
+  .detail-trigger:hover { background: var(--brand-wash); }
+  .detail-trigger:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 3px; }
+  .detail-trigger.selected { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3px var(--brand-700); }
+  .detail-panel { min-width: 0; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .detail-panel[hidden] { display: none; }
+  .detail-heading { display: flex; align-items: start; gap: 12px; }
+  .detail-heading h4 { margin: 0; flex: 1; font-size: 15px; }
+  .detail-close { border: 0; background: transparent; color: var(--text-secondary); font-size: 23px; cursor: pointer; line-height: 1; }
+  .detail-explanation, .detail-empty { color: var(--text-muted); font-size: 13px; margin: 5px 0 10px; }
+  .detail-table .lt-cell { overflow: hidden; text-overflow: ellipsis; }
+  .detail-table .lt-cell svg { vertical-align: middle; margin-right: 3px; }
+  .detail-table .lt-cell svg .flower { fill: currentColor; stroke: var(--mark-ink); stroke-width: .9; }
+  .detail-table .lt-cell svg .fruit { fill: currentColor; }
+  .lane-table .lane.teal { background: var(--lane-teal); }
+  .lane-table .lane.grey { background: var(--lane-grey); }
+  .lane-table .lane.violet { background: var(--lane-violet); }
+  .lt-group.teal { color: var(--lane-teal-ink); }
+  .lt-group.grey { color: var(--lane-grey-ink); }
+  .lt-group.violet { color: var(--lane-violet-ink); }
   .lane-table .lane.green { background: var(--lane-green); }
   .lane-table .lane.blue { background: var(--lane-blue); }
   .lane-table .lane.amber { background: var(--lane-amber); }
@@ -619,6 +642,7 @@
         </div>
       </div>
       <div class="stat-strip" id="siteKpiStrip"></div>
+      <div id="siteDetail" class="detail-panel" hidden></div>
     </div>
 
     <div class="panel" style="margin-bottom:14px;">
@@ -630,6 +654,7 @@
       </div>
       <div class="bng-headline" id="bngHeadline"></div>
       <div class="stat-strip" id="bngStrip" style="margin-bottom:12px;"></div>
+      <div id="bngDetail" class="detail-panel" hidden></div>
       <div class="bng-cols">
         <div>
           <div class="bng-sub-title">Baseline → post-intervention</div>
@@ -1274,6 +1299,7 @@
     renderPhenology(scenario.species || []);
     renderSiteKpi(scenario.siteKpi || {}, t.treeCount ?? 0);
     renderBng(scenario.bng);
+    renderSiteDetails(scenario.siteDetails);
     renderFloorTable(scenario.floorTypes || [], currency, t);
     renderNotices(t);
     renderUpkeep(t, scenario.floorTypes || [], currency, isAnnual);
@@ -2218,6 +2244,54 @@
   }
 
   // ---------------- Site & biodiversity ----------------
+  const detailOpen = { site: null, bng: null };
+  let currentSiteDetails = [];
+  function renderSiteDetails(details) {
+    currentSiteDetails = Array.isArray(details) ? details : [];
+    const mappings = [
+      ...Array.from(document.querySelectorAll('#siteMeters .meter-row')).map((el, i) => [el, ['Canopy', 'Softscape', 'Native', 'Lighting'][i], 'site']),
+      [document.querySelector('.site-bio-donut-wrap'), 'Native', 'site'],
+      ...Array.from(document.querySelectorAll('#siteKpiStrip .stat-tile')).map(el => {
+        const label = el.querySelector('.l').textContent;
+        const key = label.startsWith('Distinct') ? 'Species' : label.startsWith('Bloom') ? 'Phenology' : label.includes('connect') || label.includes('Connect') ? 'Connectivity' : label.startsWith('Pollen') ? 'Pollen' : label.startsWith('Allergenic') ? 'Allergenic' : 'Irrigation';
+        return [el, key, 'site'];
+      }),
+      [$('bngHeadline'), 'BngNet', 'bng'],
+      ...Array.from(document.querySelectorAll('#bngStrip .stat-tile')).map((el, i) => [el, ['BngBaseline', 'BngPost', null, null, null, 'BngAttention'][i], 'bng'])
+    ];
+    mappings.forEach(([el, key, section]) => {
+      if (!el) return;
+      const available = key && currentSiteDetails.some(t => t.key === key);
+      el.classList.toggle('detail-trigger', !!available);
+      el.classList.toggle('selected', !!available && detailOpen[section] === key);
+      if (!available) { el.removeAttribute('role'); el.removeAttribute('tabindex'); el.removeAttribute('aria-expanded'); el.onclick = el.onkeydown = null; return; }
+      el.setAttribute('role', 'button'); el.tabIndex = 0;
+      el.setAttribute('aria-expanded', String(detailOpen[section] === key));
+      const toggle = () => { detailOpen[section] = detailOpen[section] === key ? null : key; renderSiteDetails(currentSiteDetails); };
+      el.onclick = toggle;
+      el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+    });
+    for (const section of ['site', 'bng']) {
+      const panel = $(section === 'site' ? 'siteDetail' : 'bngDetail');
+      const table = currentSiteDetails.find(t => t.key === detailOpen[section]);
+      panel.hidden = !table;
+      if (!table) { panel.innerHTML = ''; continue; }
+      panel.innerHTML = `<div class="detail-heading"><h4>${escapeAttr(table.title || '')}</h4><button class="detail-close" type="button" aria-label="Close breakdown">&times;</button></div><p class="detail-explanation">${escapeAttr(table.explanation || '')}</p><div class="detail-content"></div>`;
+      panel.querySelector('.detail-close').onclick = () => { detailOpen[section] = null; renderSiteDetails(currentSiteDetails); };
+      const content = panel.querySelector('.detail-content');
+      if (!(table.rows || []).length) content.innerHTML = `<p class="detail-empty">${escapeAttr(table.emptyText || 'No data available.')}</p>`;
+      else {
+        content.innerHTML = '<div class="lane-scroll"><div class="lane-table detail-table static"></div></div>';
+        renderLaneTable(content.querySelector('.lane-table'), '', [], [], [], { detail: table });
+      }
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && (detailOpen.site || detailOpen.bng)) {
+      detailOpen.site = detailOpen.bng = null; renderSiteDetails(currentSiteDetails);
+    }
+  });
+
   function renderSiteKpi(k, totalTrees) {
     // Ratio stats read as meters (a value against a 0-100% limit), not bare numbers — the two counts
     // that aren't ratios (distinct species, bloom months) stay as plain stat tiles below.
@@ -2676,7 +2750,8 @@
     return [columns.slice(k), shifted, rows.map(r => (r.values ? { ...r, values: r.values.slice(k) } : r))];
   }
 
-  function renderLaneTable(host, nameHead, columns, lanes, rows, { interactive = true, minWidth = null } = {}) {
+  function renderLaneTable(host, nameHead, columns, lanes, rows, { interactive = true, minWidth = null, detail = null } = {}) {
+    if (detail) return renderDetailLaneTable(host, detail);
     host.style.gridTemplateColumns = `minmax(150px, 1.7fr) repeat(${columns.length}, minmax(64px, 1fr))`;
     host.style.minWidth = minWidth == null ? '' : minWidth + 'px';
     host.classList.toggle('static', !interactive);
@@ -2702,6 +2777,43 @@
           return `<div class="lt-cell num${cell.cls ? ' ' + escapeAttr(cell.cls) : ''}" style="${at(row, i + 2)}">${escapeAttr(cell.text ?? '')}</div>`;
         }).join('') + '</div>';
     }).join('');
+    host.innerHTML = html;
+  }
+
+  // Detail exports already contain display strings and cell styling; do not recalculate them.
+  function renderDetailLaneTable(host, table) {
+    const lanes = table.lanes || [], columns = lanes.flatMap(l => l.columns || []);
+    const rows = table.rows || [], allRows = table.total ? [...rows, table.total] : rows;
+    const at = (row, col) => `grid-row:${row};grid-column:${col}`;
+    const safeColour = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : '';
+    host.style.gridTemplateColumns = columns.map((c, i) => i === 0 ? 'minmax(150px, 1.7fr)' : 'minmax(80px, 1fr)').join(' ');
+    host.style.minWidth = Math.max(500, 150 + (columns.length - 1) * 80) + 'px';
+    let html = '', offset = 0;
+    lanes.forEach(lane => {
+      const count = (lane.columns || []).length, color = (lane.colour || '').toLowerCase();
+      const cls = ['green', 'blue', 'amber', 'grey', 'violet', 'teal'].includes(color) ? color : '';
+      const range = `${offset + 1} / ${offset + count + 1}`;
+      if (count && cls) html += `<div class="lane ${cls}" style="grid-row:1 / span ${allRows.length + 2};grid-column:${range}"></div>`;
+      if (count && lane.title) html += `<div class="lt-group ${cls}" style="${at(1, range)}">${escapeAttr(lane.title)}</div>`;
+      offset += count;
+    });
+    columns.forEach((c, i) => {
+      const align = ['left', 'center', 'right'].includes(c.align) ? c.align : 'left';
+      html += `<div class="lt-head" style="${at(2, i + 1)};text-align:${align}">${escapeAttr(c.name || '')}<span class="u">${escapeAttr(c.unit || '')}</span></div>`;
+    });
+    allRows.forEach((row, n) => {
+      html += `<div class="${n >= rows.length ? 'lt-summary total' : 'lt-row'}">`;
+      columns.forEach((c, i) => {
+        const look = (table.looks || [])[n]?.[i] || {}, bg = safeColour(look.background);
+        const align = ['left', 'center', 'right'].includes(c.align) ? c.align : 'left';
+        const marks = (look.marks || []).map(mark => {
+          const color = safeColour(mark.colour) || 'currentColor';
+          return `<span style="color:${color}">${phenoMark(mark.kind)}</span>`;
+        }).join('');
+        html += `<div class="lt-cell" style="${at(n + 3, i + 1)};text-align:${align}${bg ? ';background:color-mix(in srgb, ' + bg + ' 18%, transparent)' : ''}"${look.toolTip ? ` title="${escapeAttr(look.toolTip)}"` : ''}>${marks}${escapeAttr(row[i] ?? '')}</div>`;
+      });
+      html += '</div>';
+    });
     host.innerHTML = html;
   }
 

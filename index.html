@@ -3228,13 +3228,44 @@
       floorMeshes = scene.floors.map((f, index) => {
         const p = f.positions || [];
         if (p.length < 9 || !f.indices || f.indices.length < 3) return null;
-        const positions = new Float32Array(p.length);
+        const thickness = Number.isFinite(f.thickness) && f.thickness > 0 ? f.thickness : 0;
+        const positions = new Float32Array(p.length * (thickness ? 2 : 1));
         for (let i = 0; i < p.length; i += 3) {
           positions[i] = p[i]; positions[i + 1] = p[i + 2]; positions[i + 2] = -p[i + 1];
+          if (thickness) {
+            positions[p.length + i] = positions[i];
+            positions[p.length + i + 1] = positions[i + 1] - thickness;
+            positions[p.length + i + 2] = positions[i + 2];
+          }
         }
-        const geometry = new THREE.BufferGeometry();
+        const indices = Array.from(f.indices);
+        if (thickness) {
+          const count = p.length / 3, edges = new Map();
+          // Revit faces may use separate vertices at a shared seam. Weld for edge counting
+          // so seams don't become internal walls; openings still get their own side walls.
+          const keys = Array.from({ length: count }, (_, i) => p.slice(i * 3, i * 3 + 3).join(','));
+          for (let i = 0; i < f.indices.length; i += 3) {
+            const [a, b, c] = f.indices.slice(i, i + 3);
+            indices.push(c + count, b + count, a + count);
+            for (const [u, v] of [[a, b], [b, c], [c, a]]) {
+              const key = JSON.stringify([keys[u], keys[v]].sort());
+              const edge = edges.get(key);
+              if (edge) edge.uses++;
+              else edges.set(key, { u, v, uses: 1 });
+            }
+          }
+          for (const { u, v, uses } of edges.values()) {
+            if (uses === 1) indices.push(u, u + count, v, v, u + count, v + count);
+          }
+        }
+        let geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setIndex(f.indices);
+        geometry.setIndex(indices);
+        if (thickness) {
+          const indexed = geometry;
+          geometry = indexed.toNonIndexed(); // Keep the top-to-wall edges crisp.
+          indexed.dispose();
+        }
         geometry.computeVertexNormals();
         geometry.computeBoundingBox();
         box.union(geometry.boundingBox);
@@ -3375,6 +3406,7 @@
       }
       const f = scene.floors[el.index];
       return `<b>${escapeAttr(floorKey(f))}</b>` +
+        `<span class="k">Category</span> ${f.category === 'Roof' ? 'Roof' : 'Floor'}<br>` +
         `<span class="k">Type</span> ${escapeAttr(f.type || '—')}<br>` +
         `<span class="k">Area</span> ${fixed(f.areaM2, 0)} m²${f.holes ? ` · ${fixed(f.holes, 0)} hole${f.holes === 1 ? '' : 's'}` : ''}<br>` +
         `<span class="k">Phase</span> ${escapeAttr(PHASE_TEXT[f.phaseRole] || f.phaseRole || '—')}<br>` +

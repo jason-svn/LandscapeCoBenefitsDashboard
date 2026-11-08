@@ -180,6 +180,8 @@
     font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);
   }
   .translate-pill .translate-value { font-size: 19px; font-weight: 700; line-height: 1.15; color: var(--text-primary); }
+  .translate-pill .translate-split { font-size: 12px; line-height: 1.35; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .translate-pill .translate-split span { white-space: nowrap; }
 
   .translate-connector { display: flex; align-items: center; justify-content: center; }
   .translate-connector svg { width: 100%; height: 28px; }
@@ -550,17 +552,6 @@
 
     <div id="dataNotices"></div>
 
-    <div class="panel" id="upkeepPanel" style="margin-bottom:14px;">
-      <div class="panel-head">
-        <div>
-          <h3>Maintenance cost &amp; net value</h3>
-          <div class="panel-sub" id="upkeepSub">What keeping the planting costs each year, against what it saves</div>
-        </div>
-      </div>
-      <div class="upkeep-grid" id="upkeepGrid"></div>
-      <div class="lane-scroll upkeep-table-wrap"><div class="lane-table static" id="upkeepTable"></div></div>
-    </div>
-
     <div class="panel" id="site3dPanel" style="margin-bottom:14px; display:none;">
       <div class="panel-head">
         <div>
@@ -600,6 +591,17 @@
           </section>
         </div>
       </div>
+    </div>
+
+    <div class="panel" id="upkeepPanel" style="margin-bottom:14px;">
+      <div class="panel-head">
+        <div>
+          <h3>Maintenance cost &amp; net value</h3>
+          <div class="panel-sub" id="upkeepSub">What keeping the planting costs each year, against what it saves</div>
+        </div>
+      </div>
+      <div class="upkeep-grid" id="upkeepGrid"></div>
+      <div class="lane-scroll upkeep-table-wrap"><div class="lane-table static" id="upkeepTable"></div></div>
     </div>
 
     <div class="panel" style="margin-bottom:14px;">
@@ -692,13 +694,13 @@
             <div class="panel-sub" id="pollutantSub">Trees, by pollutant, mass removed (planting areas have one total rate, counted in the "Air pollutants removed" card)</div>
           </div>
           <div class="toggle-tabs" id="pollutantViewTabs">
-            <button data-view="chart" class="active">Chart</button>
-            <button data-view="pie">Pie</button>
+            <button data-view="chart">Chart</button>
+            <button data-view="pie" class="active">Pie</button>
             <button data-view="table">Table</button>
           </div>
         </div>
-        <div id="pollutantBars"></div>
-        <div class="donut-wrap" id="pollutantPieWrap" style="display:none;">
+        <div id="pollutantBars" style="display:none;"></div>
+        <div class="donut-wrap" id="pollutantPieWrap">
           <svg id="pollutantPie" width="170" height="170" viewBox="0 0 170 170"></svg>
           <div class="legend" id="pollutantPieLegend"></div>
         </div>
@@ -720,14 +722,14 @@
               <button data-metric="pollutants">Pollutants</button>
             </div>
             <div class="toggle-tabs" id="speciesViewTabs" aria-label="Species view">
-              <button data-view="chart" class="active">Chart</button>
-              <button data-view="pie">Pie</button>
+              <button data-view="chart">Chart</button>
+              <button data-view="pie" class="active">Pie</button>
               <button data-view="table">Table</button>
             </div>
           </div>
         </div>
-        <div id="speciesBars"></div>
-        <div class="donut-wrap" id="speciesPieWrap" style="display:none;">
+        <div id="speciesBars" style="display:none;"></div>
+        <div class="donut-wrap" id="speciesPieWrap">
           <svg id="speciesPie" width="170" height="170" viewBox="0 0 170 170"></svg>
           <div class="legend" id="speciesPieLegend"></div>
         </div>
@@ -889,7 +891,7 @@
   // With no growth year there's no span to multiply by, so planting areas add nothing to lifetime.
   const metricLifetime = (metric, s) => metric.treeLifetime(s.totals || {}) + metric.floor(floorYear(s)) * (s.years ?? 0);
 
-  const state = { data: null, period: 'annual', perUnit: false, speciesView: 'chart', speciesMetric: 'carbon', pollutantView: 'chart', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
+  const state = { data: null, period: 'annual', perUnit: false, speciesView: 'pie', speciesMetric: 'carbon', pollutantView: 'pie', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
 
   // ISO 3166-1 alpha-2 -> alpha-3, standard reference table (stable, does not change) — bridges the
   // reverse-geocoder's alpha-2 country code to geoBoundaries' alpha-3 lookup key.
@@ -944,8 +946,12 @@
     if (n === null || n === undefined || Number.isNaN(n)) return '—';
     return fixed(n, digits ?? 0) + '%';
   }
+  // LIM's own signs, the same in every browser locale (Intl would write "US$" or "CA$" by locale).
+  const CURRENCY_SIGNS = { USD: '$', CAD: 'C$', AUD: 'A$', NZD: 'NZ$', GBP: '£', EUR: '€', CNY: '￥' };
   function money(n, currency) {
     if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    const sign = CURRENCY_SIGNS[(currency || 'USD').toUpperCase()];
+    if (sign) return (n < 0 ? '-' : '') + sign + fixed(Math.abs(n), 0);
     try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(n); }
     catch { return fixed(n, 0) + ' ' + (currency || ''); }
   }
@@ -1198,13 +1204,23 @@
 
   $('speciesViewTabs').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-view]');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     state.speciesView = btn.dataset.view;
-    [...$('speciesViewTabs').children].forEach(b => b.classList.toggle('active', b === btn));
-    $('speciesBars').style.display = state.speciesView === 'chart' ? 'block' : 'none';
-    $('speciesPieWrap').style.display = state.speciesView === 'pie' ? 'flex' : 'none';
-    $('speciesTableWrap').style.display = state.speciesView === 'table' ? 'block' : 'none';
+    showView('species', speciesViewShown());
   });
+
+  // Which of a panel's three views (chart, pie, table) shows.
+  function showView(prefix, view) {
+    [...$(prefix + 'ViewTabs').children].forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    $(prefix + 'Bars').style.display = view === 'chart' ? 'block' : 'none';
+    $(prefix + 'PieWrap').style.display = view === 'pie' ? 'flex' : 'none';
+    $(prefix + 'TableWrap').style.display = view === 'table' ? 'block' : 'none';
+  }
+
+  // Per tree, the species pie gives way to the chart; it comes back with Site totals.
+  function speciesViewShown() {
+    return state.perUnit && state.speciesView === 'pie' ? 'chart' : state.speciesView;
+  }
 
   $('speciesMetricTabs').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-metric]');
@@ -1217,10 +1233,7 @@
     const btn = e.target.closest('button[data-view]');
     if (!btn) return;
     state.pollutantView = btn.dataset.view;
-    [...$('pollutantViewTabs').children].forEach(b => b.classList.toggle('active', b === btn));
-    $('pollutantBars').style.display = state.pollutantView === 'chart' ? 'block' : 'none';
-    $('pollutantPieWrap').style.display = state.pollutantView === 'pie' ? 'flex' : 'none';
-    $('pollutantTableWrap').style.display = state.pollutantView === 'table' ? 'block' : 'none';
+    showView('pollutant', state.pollutantView);
   });
 
   // ---------------- Rendering ----------------
@@ -1235,16 +1248,23 @@
     const scenarioNote = scenarios.length > 1 ? ' · ' + scenario.label : '';
     $('headerSub').textContent =
       (d.project.title || 'Untitled project') + ' · ' + (isAnnual ? 'Annual' : 'Lifetime') + ' benefits · ' + currency + scenarioNote;
-    $('genTime').textContent = d.project.generatedAt
-      ? 'Snapshot generated ' + new Date(d.project.generatedAt).toLocaleString()
-      : '';
+    $('genTime').textContent = [
+      d.project.generatedAt ? 'Snapshot generated ' + new Date(d.project.generatedAt).toLocaleString() : '',
+      rateText(d.project.exchangeRate, currency),
+    ].filter(Boolean).join(' · ');
 
     // Pollutant by pollutant is trees only: planting areas' sheet rate is one total.
     const pollutants = isAnnual ? (t.pollutantsRemovedAnnual || {}) : (t.pollutantsRemovedLifetime || {});
     // The headline cards: trees + planting areas, as the growth charts below plot them.
     const kpi = (key) => isAnnual ? metricAnnual(METRICS[key], scenario) : metricLifetime(METRICS[key], scenario);
+    // Where a card's total comes from: trees, and planting areas (lifetime: their yearly figure × the years, as metricLifetime).
+    const split = (key) => {
+      const m = METRICS[key];
+      const areas = m.floor(floorYear(scenario));
+      return isAnnual ? { trees: m.treeAnnual(t), areas } : { trees: m.treeLifetime(t), areas: areas * (scenario.years ?? 0) };
+    };
     renderKpis({ runoffM3: kpi('water') / 1000, co2Kg: kpi('carbon'), pollutantTotalKg: kpi('air'), oxygenKg: kpi('oxygen'),
-      costSaved: kpi('cost'), currency });
+      costSaved: kpi('cost'), currency, co2Split: split('carbon'), oxygenSplit: split('oxygen') });
     renderGrowthBarChart(timeline(), scenario.label, currency);
     renderGrowthCurveChart(timeline(), scenario.label, currency);
     renderLocation(d.project.location);
@@ -1572,7 +1592,8 @@
     </svg>`;
   }
 
-  function renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, costSaved, currency }) {
+  function renderKpis({ runoffM3, co2Kg, pollutantTotalKg, oxygenKg, costSaved, currency, co2Split, oxygenSplit }) {
+    const splitLine = (s) => `<span>Trees ${fixed(s.trees, 0)}</span> · <span>Planting areas ${fixed(s.areas, 0)}</span>`;
     const baths = (runoffM3 * 1000) / EQUIV.litersPerBath;
     const miles = co2Kg / EQUIV.kgCo2PerMileDriven;
     const cigarettes = (pollutantTotalKg * 1e6) / EQUIV.mgPmPerCigaretteEquivalent;
@@ -1582,9 +1603,9 @@
 
     const rows = [
       { m: 'water', icon: 'water', label: 'Avoided water run-off', value: fixed(runoffM3 * 1000, 0) + ' L' + perSuffix, equiv: compact(baths, 0) + ' baths' },
-      { m: 'carbon', icon: 'carbon', label: 'CO₂ sequestration', value: fixed(co2Kg, 0) + ' kg' + perSuffix, equiv: 'Driving ' + compact(miles, 0) + ' mi' },
+      { m: 'carbon', icon: 'carbon', label: 'CO₂ sequestration', value: fixed(co2Kg, 0) + ' kg' + perSuffix, split: splitLine(co2Split), equiv: 'Driving ' + compact(miles, 0) + ' mi' },
       { m: 'air', icon: 'air', label: 'Air pollutants removed', value: fixed(pollutantTotalKg, 1) + ' kg' + perSuffix, equiv: compact(cigarettes, 1) + ' cigarettes*' },
-      { m: 'oxygen', icon: 'oxygen', label: 'Air generated (O₂)', value: fixed(oxygenKg, 0) + ' kg' + perSuffix, equiv: compact(breathingDays, 0) + ' days of breathing' },
+      { m: 'oxygen', icon: 'oxygen', label: 'Air generated (O₂)', value: fixed(oxygenKg, 0) + ' kg' + perSuffix, split: splitLine(oxygenSplit), equiv: compact(breathingDays, 0) + ' days of breathing' },
       { m: 'cost', icon: 'cost', label: 'Cost saved', value: money(costSaved, currency) + perSuffix, equiv: compact(coffees, 0) + ' cups of coffee*' },
     ];
 
@@ -1596,6 +1617,7 @@
           <div class="translate-text">
             <div class="translate-label">${r.label}</div>
             <div class="translate-value">${r.value}</div>
+            ${r.split ? `<div class="translate-split">${r.split}</div>` : ''}
           </div>
         </div>
         <div class="translate-connector">${waveConnector(METRICS[r.m].color)}</div>
@@ -2044,12 +2066,7 @@
     const pieButton = $('speciesViewTabs').querySelector('[data-view="pie"]');
     pieButton.disabled = state.perUnit;
     pieButton.title = state.perUnit ? 'A pie of per-tree figures adds up to nothing: switch back to Site totals' : '';
-    if (state.perUnit && state.speciesView === 'pie') {
-      state.speciesView = 'chart';
-      [...$('speciesViewTabs').children].forEach(b => b.classList.toggle('active', b.dataset.view === 'chart'));
-      $('speciesBars').style.display = 'block';
-      $('speciesPieWrap').style.display = 'none';
-    }
+    showView('species', speciesViewShown());
 
     rows.sort((a, b) => (b[metric.key] ?? 0) - (a[metric.key] ?? 0));
     const top = rows.slice(0, 8);
@@ -2180,7 +2197,7 @@
     $('topTreeStats').innerHTML = `
       <div class="top-tree-stat"><div class="v">${fixed(topRow.trees, 0)}</div><div class="l">Trees</div></div>
       <div class="top-tree-stat"><div class="v">${smallFixed(topRow.carbon ?? 0, 1)} kg CO₂e${per}</div><div class="l">CO₂ sequestered</div></div>
-      <div class="top-tree-stat"><div class="v">${smallFixed(topRow.runoff ?? 0, 1)} m³${per}</div><div class="l">Run-off avoided</div></div>
+      <div class="top-tree-stat"><div class="v">${topRow.runoff == null ? '—' : smallFixed(topRow.runoff, 1) + ' m³' + per}</div><div class="l">Run-off avoided</div></div>
       <div class="top-tree-stat"><div class="v">${smallFixed(topRow.pollution ?? 0, 2)} kg${per}</div><div class="l">Pollutants removed</div></div>
       <div class="top-tree-stat"><div class="v">${state.perUnit ? currencySymbol(currency) + fixed(topRow.cost, 2) : money(topRow.cost, currency)}${per}</div><div class="l">Cost saved</div></div>`;
     $('topTreePhoto').innerHTML = '<div class="region-spinner"></div>';
@@ -2522,7 +2539,26 @@
   /** The species' color in the charts above (renderSpecies), so table, charts and 3D agree. */
   const speciesColor = (key) => (state.speciesColors && state.speciesColors.get(key)) || 'var(--brand-300)';
 
+  // Schema 13's `project.exchangeRate`: the USD rates the tree money stands at. i-Tree Calculator
+  // converts when it runs, so a tree's rate is that day's (or the project's fixed rate); the export's
+  // own rate only touched trees stored in another currency.
+  function rateText(r, currency) {
+    if (!r || r.source === 'none') return '';
+    const n = (x) => new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 }).format(x);
+    const how = r.source === 'fixed' ? 'fixed rate' + (r.note ? ': ' + r.note : '')
+      : r.source === 'market' ? 'ECB rate' + (r.asOf ? ' of ' + new Date(r.asOf + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '')
+      : 'no exchange rate at export';
+    if (r.treeRateMin == null) return r.source === 'unavailable' ? 'Tree values: ' + how : `1 USD = ${n(r.usdRate)} ${currency} (${how})`;
+    const one = Math.abs(r.treeRateMax - r.treeRateMin) < 1e-6;
+    const trees = one ? n(r.treeRateMin) : n(r.treeRateMin) + '–' + n(r.treeRateMax);
+    const asNow = one && r.source !== 'unavailable' && Math.abs(r.treeRateMin - r.usdRate) < 1e-6;
+    return `Tree values at 1 USD = ${trees} ${currency} (` +
+      (asNow ? how : 'as when i-Tree ran; ' + (r.source === 'unavailable' ? how : 'at export ' + n(r.usdRate) + ', ' + how)) + ')';
+  }
+
   function currencySymbol(currency) {
+    const sign = CURRENCY_SIGNS[(currency || 'USD').toUpperCase()];
+    if (sign) return sign;
     try {
       const part = new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).formatToParts(0).find(p => p.type === 'currency');
       return part ? part.value : currency;

@@ -808,6 +808,12 @@
           <h3 id="growthCurveTitle">Growth curve</h3>
           <div class="panel-sub" id="growthCurveSub">Lifetime cumulative, traced across growth stages</div>
         </div>
+        <div class="toggle-tabs" id="curvePartTabs" aria-label="What the growth curve adds up"
+             title="Trees grow, so their yearly figure rises and their curve bends up; planting areas have one yearly rate, so theirs is a straight line">
+          <button data-part="all" class="active">All</button>
+          <button data-part="trees">Trees</button>
+          <button data-part="areas">Planting areas</button>
+        </div>
       </div>
       <div class="growth-chart-wrap">
         <div id="growthCurveHost"></div>
@@ -916,7 +922,7 @@
   // With no growth year there's no span to multiply by, so planting areas add nothing to lifetime.
   const metricLifetime = (metric, s) => metric.treeLifetime(s.totals || {}) + metric.floor(floorYear(s)) * (s.years ?? 0);
 
-  const state = { data: null, period: 'annual', perUnit: false, speciesView: 'pie', speciesMetric: 'carbon', pollutantView: 'pie', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
+  const state = { data: null, period: 'annual', perUnit: false, speciesView: 'pie', speciesMetric: 'carbon', pollutantView: 'pie', curvePart: 'all', scenarioLabel: null, growthMetric: 'carbon', regionMapKey: null };
 
   // ISO 3166-1 alpha-2 -> alpha-3, standard reference table (stable, does not change) — bridges the
   // reverse-geocoder's alpha-2 country code to geoBoundaries' alpha-3 lookup key.
@@ -1254,6 +1260,13 @@
     renderAll();
   });
 
+  $('curvePartTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-part]');
+    if (!btn || !state.data) return;
+    state.curvePart = btn.dataset.part;
+    renderAll();
+  });
+
   $('pollutantViewTabs').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-view]');
     if (!btn) return;
@@ -1483,7 +1496,14 @@
   // metric's own color, as before.
   const SCENARIO_LINE_COLORS = ['--cat-2', '--cat-3', '--cat-5', '--cat-6', '--cat-4', '--cat-8', '--cat-7'];
 
-  function growthSeries(metricKey) {
+  // The curve's lifetime: trees + planting areas, or one of them (planting areas: yearly figure × years, as metricLifetime).
+  function lifetimePart(metric, s, part) {
+    if (part === 'trees') return metric.treeLifetime(s.totals || {});
+    if (part === 'areas') return metric.floor(floorYear(s)) * (s.years ?? 0);
+    return metricLifetime(metric, s);
+  }
+
+  function growthSeries(metricKey, part = 'all') {
     const metric = METRICS[metricKey];
     const options = designOptions();
     const groups = options.length
@@ -1498,14 +1518,14 @@
         color: !options.length ? metric.color
           : existing ? 'var(--text-muted)'
           : `var(${SCENARIO_LINE_COLORS[slot++ % SCENARIO_LINE_COLORS.length]})`,
-        points: entries.map(s => ({ key: s.label, years: s.years, xLabel: scenarioLabelOf(s), value: metricLifetime(metric, s) })),
+        points: entries.map(s => ({ key: s.label, years: s.years, xLabel: scenarioLabelOf(s), value: lifetimePart(metric, s, part) })),
       };
     });
   }
 
   function renderGrowthCurveChart(scenarios, selectedLabel, currency) {
     const panel = $('growthCurvePanel');
-    const series = growthSeries(state.growthMetric).filter(s => s.points.length > 0);
+    const series = growthSeries(state.growthMetric, state.curvePart).filter(s => s.points.length > 0);
     if (!series.some(s => s.points.length > 1)) {
       panel.style.display = 'none';
       return;
@@ -1513,10 +1533,14 @@
     panel.style.display = 'block';
 
     const metric = METRICS[state.growthMetric];
-    $('growthCurveTitle').textContent = 'Growth curve — ' + metric.label;
-    $('growthCurveSub').textContent = series.length > 1
+    const partLabel = { all: '', trees: ' · trees', areas: ' · planting areas' }[state.curvePart];
+    $('growthCurveTitle').textContent = 'Growth curve — ' + metric.label + partLabel;
+    $('growthCurveSub').textContent = (series.length > 1
       ? 'Lifetime cumulative, one line per scenario — click a point or a scenario to view it there'
-      : 'Lifetime cumulative, traced across growth stages';
+      : 'Lifetime cumulative, traced across growth stages') +
+      (state.curvePart === 'trees' ? '. Trees grow, so each year adds more.'
+        : state.curvePart === 'areas' ? '. Planting areas have one yearly rate: a straight line.' : '');
+    [...$('curvePartTabs').children].forEach(b => b.classList.toggle('active', b.dataset.part === state.curvePart));
 
     const width = 640, height = 250;
     // Wider side margins than the bar chart: points sit AT the left/right edges of the plot area

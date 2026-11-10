@@ -587,7 +587,7 @@
           <div class="site3d-status" id="site3dStatus">Loading the 3D view…</div>
           <div class="site3d-card" id="site3dCard" role="status" aria-live="polite"></div>
           <div class="site3d-tools">
-            <label class="site3d-colour" id="site3dColourWrap" hidden title="Colour the trees and planting areas as a Revit view's filters do">Colour by
+            <label class="site3d-colour" id="site3dColourWrap" hidden title="Colour the trees and planting areas by a benefit, or as one of the model's Revit views does">Colour by
               <select id="site3dColour"><option value="">Species &amp; landscape type</option></select></label>
             <label class="site3d-toggle" title="Highlight the tree or planting area under the pointer, and the one you click"><input type="checkbox" id="site3dHighlight" checked> Highlight</label>
             <button class="btn site3d-reset" id="site3dReset" type="button">Reset view</button>
@@ -2671,7 +2671,55 @@
   // view's filters takes is grey; a kind the view doesn't colour at all (floors in a trees-only
   // view) keeps its usual colours.
   const NO_RULE_COLOR = '#c8c8c4';
-  const schemeLabel = (s) => s.name.replace(/_/g, ' ');
+  // A scheme is named after what it colours, not after the Revit view: when every filter tests one
+  // LIM parameter it reads "Trees · CO₂ sequestered" (a view of trees only), "Planting areas · …"
+  // (floors only, a benefit), "Surfaces · …" (floors only, anything else) or just the measure (both).
+  // A view without one LIM parameter keeps its own name. `s.name`, the view's name, stays the key
+  // and shows in the tooltips.
+  const SCHEME_MEASURES = [
+    [/^(CO2|CarbonDioxide)(Equivalent|Sequest)/, 'CO₂ sequestered', true],
+    [/^Oxygen(Produc|Levels)/, 'O₂ produced', true],
+    [/^PollutantsRemoved/, 'Pollutants removed', true],
+    [/^(RunoffAvoided|AvoidedWaterRunoff)/, 'Run-off avoided', true],
+    [/^Pollen/, 'Pollen released', false],
+    [/^MaintenanceCost/, 'Maintenance cost', false],
+  ];
+  const SCHEME_VALUE_TYPES = new Set(['Number', 'Mass', 'Volume', 'Length', 'Area', 'Currency', 'Text', 'YesNo']);
+  /** "PollutantsRemovedRate" → "Pollutants removed rate"; acronyms (CO2, GWP, dPC) keep their case. */
+  function schemeWords(name, capitalise) {
+    return name.replace(/(?<!^)([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+      .split(' ').filter(w => w && w !== 'Annual')
+      .map((w, i) => (capitalise && i === 0) || /[A-Z].*[A-Z0-9]/.test(w) ? w : w.toLowerCase()).join(' ');
+  }
+  /** The measure a LIM parameter holds ("!_S_PLT_LDS_CO2SequestrationRate_Number" → CO₂ sequestered); null for any other parameter. */
+  function schemeMeasure(parameter) {
+    const lim = /^!_S_PLT_(.+)$/.exec(parameter || '');
+    if (!lim) return null;
+    const parts = lim[1].split('_');
+    if (parts.length > 1 && SCHEME_VALUE_TYPES.has(parts[parts.length - 1])) parts.pop();
+    const measure = parts.pop();
+    if (!measure) return null;
+    const known = SCHEME_MEASURES.find(([pattern]) => pattern.test(measure));
+    if (known) return { text: known[1], benefit: known[2] };
+    const group = parts.join(' ');
+    const context = /Connectivity/.test(group) ? 'Connectivity' : /BNG/.test(group) ? 'BNG' : '';
+    if (context === 'Connectivity' && measure === 'Reach') return { text: 'Habitat connectivity (reach)', benefit: false };
+    return { text: context ? `${context} ${schemeWords(measure, false)}` : schemeWords(measure, true), benefit: false };
+  }
+  /** The scheme's name and its place in the list: trees, then planting areas/surfaces, then both, then views named by hand. */
+  function schemeTitle(s) {
+    const measure = schemeMeasure(s.parameter);
+    if (!measure) return { title: s.name.replace(/_/g, ' '), rank: 3 };
+    const trees = s.trees != null, floors = s.floors != null;
+    if (trees && !floors) return { title: `Trees · ${measure.text}`, rank: 0 };
+    if (floors && !trees) return { title: `${measure.benefit ? 'Planting areas' : 'Surfaces'} · ${measure.text}`, rank: 1 };
+    return { title: measure.text, rank: 2 };
+  }
+  const schemeLabel = (s) => s.label || s.title || s.name.replace(/_/g, ' ');
+  /** Where a scheme's colours come from, for its tooltips. */
+  const schemeSource = (s) => s.standard
+    ? `Banded by LIM. The Revit view "${s.name}" (Dashboard → Colour views) uses the same bands.`
+    : `Revit view: ${s.name}`;
   function activeScheme() {
     const schemes = (site.current && site.current.scene.colourSchemes) || [];
     return schemes.find(s => s.name === site.colour) || null;
@@ -2691,9 +2739,24 @@
 
   function populateColourSchemes(scene) {
     const schemes = scene.colourSchemes || [];
+    // Schema 16's standard schemes come first, in LIM's order and named by LIM; the model's own
+    // views follow, named from what they colour. Two views that would share a name keep them apart
+    // with the view's own name.
+    const named = schemes.map((s, order) => s.standard && s.title
+      ? { s, title: s.title, rank: -1, order }
+      : { s, ...schemeTitle(s), order });
+    for (const n of named) {
+      const twin = !n.s.standard && named.some(o => o !== n && o.title === n.title);
+      n.s.label = twin ? `${n.title} (${n.s.name.replace(/_/g, ' ')})` : n.title;
+    }
+    named.sort((a, b) => a.rank - b.rank || (a.rank < 0 ? a.order - b.order : a.s.label.localeCompare(b.s.label)));
+    const options = (list) => list.map(({ s }) =>
+      `<option value="${escapeAttr(s.name)}" title="${escapeAttr(schemeSource(s))}">${escapeAttr(schemeLabel(s))}${s.unit ? ` (${escapeAttr(s.unit)})` : ''}</option>`).join('');
+    const standard = named.filter(n => n.rank < 0), views = named.filter(n => n.rank >= 0);
     const select = $('site3dColour');
-    select.innerHTML = '<option value="">Species &amp; landscape type</option>' + schemes.map(s =>
-      `<option value="${escapeAttr(s.name)}">${escapeAttr(schemeLabel(s))}${s.unit ? ` (${escapeAttr(s.unit)})` : ''}</option>`).join('');
+    select.innerHTML = '<option value="">Species &amp; landscape type</option>' + (standard.length && views.length
+      ? `<optgroup label="Benefits">${options(standard)}</optgroup><optgroup label="Revit views">${options(views)}</optgroup>`
+      : options(named));
     $('site3dColourWrap').hidden = schemes.length === 0;
     let saved = '';
     try { saved = localStorage.getItem('lim.site3d.colour') || ''; } catch { /* not remembered */ }
@@ -2709,7 +2772,7 @@
     const rows = scheme.rules.map((r, i) => ({ rule: i, label: r.label, title: `Revit filter: ${r.filter}`, colour: r.colour, n: counts[i] || 0 }));
     if (none > 0) rows.push({ rule: -1, label: 'Not coloured', title: "None of the view's filters takes these", colour: NO_RULE_COLOR, n: none });
     host.innerHTML = `<div class="head" role="button" tabindex="0" data-collapse aria-expanded="${!site.legendCollapsed}" title="Show or hide the legend">` +
-      `<h5>${escapeAttr(schemeLabel(scheme))}${scheme.unit ? ` <span class="u">${escapeAttr(scheme.unit)}</span>` : ''}</h5></div><div class="rows">` +
+      `<h5 title="${escapeAttr(schemeSource(scheme))}">${escapeAttr(schemeLabel(scheme))}${scheme.unit ? ` <span class="u">${escapeAttr(scheme.unit)}</span>` : ''}</h5></div><div class="rows">` +
       rows.map(r => {
         const on = site.bandSel.has(r.rule);
         return `<button type="button" data-rule="${r.rule}" class="${on ? 'on' : ''}" aria-pressed="${on}" title="${escapeAttr(r.title)}">` +

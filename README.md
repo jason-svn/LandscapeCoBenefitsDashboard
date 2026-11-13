@@ -326,3 +326,9 @@ source before using this for anything published externally.
 This is a static site — any static host works (GitHub Pages, Netlify, a
 plain file share). To publish via GitHub Pages: Settings → Pages → Deploy
 from branch → `master` / `/ (root)`.
+
+## License
+
+[GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). Copyright (c) 2026 Jason Tian and Isabella Bhoan.
+
+You may use, modify and distribute this software, but if you distribute it, or let others use a modified version over a network, you must make your complete source code available under the same licence. Using it for commercial benefit without accepting those terms needs a separate commercial licence from the copyright holders.

@@ -329,6 +329,6 @@ from branch → `master` / `/ (root)`.
 
 ## License
 
-[GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). Copyright (c) 2026 Jason Tian and Isabella Bhoan.
+[PolyForm Noncommercial License 1.0.0](LICENSE). Copyright (c) 2026 Jason Tian and Isabella Bhoan.
 
-You may use, modify and distribute this software, but if you distribute it, or let others use a modified version over a network, you must make your complete source code available under the same licence. Using it for commercial benefit without accepting those terms needs a separate commercial licence from the copyright holders.
+The software is free for personal, educational, research and other noncommercial use, and you may modify it and share your changes under the same terms. Use by or for a company, or for any commercial benefit, needs a separate paid commercial licence from the copyright holders.

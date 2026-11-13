@@ -57,29 +57,37 @@ is sent anywhere (see "3D site" below).
    species result between **Chart / Pie / Table**. Click
    any translation card (Avoided water run-off, CO₂, Air pollutants, Air
    generated, Cost saved) to make the growth charts below plot that metric.
-5. With a schema 9 export, the **3D site** panel shows the scenario's trees
+5. With an export that carries a 3D scene (schema 9 or later), the **3D site** panel shows the scenario's trees
    and planting areas. Drag to pan, right-drag to rotate, scroll to zoom, click
    a tree or planting area for its details. Click rows of the result board
    under it to show only those species or landscape types (Shift+click
    selects a range); **Show all** clears the selection. With a schema 10
    export, **Colour by** colours the 3D as one of the model's Revit views does
-   with its filters (e.g. O₂ produced per tree in bands), with a legend.
+   with its filters (e.g. O₂ produced per tree in bands), with a legend. With
+   a schema 16 export every project also gets LIM's eight standard benefit
+   colourings (trees and planting areas, each by CO₂ sequestered, O₂ produced,
+   pollutants removed and run-off avoided).
+6. **Site totals | Per tree / m²** in the header switches the species tables to
+   what one tree does and the landscape-type tables to a per-m² figure. The
+   header (scenario, growth year, period, per tree / m²) stays at the top as
+   you scroll. Click a site card (canopy cover, native species, …) to open the
+   table behind it (schema 14 or later), and use **All / Trees / Planting
+   areas** on the growth curve to split it.
 
 Don't have an export handy? Click **Load sample data** to preview the page with
-the bundled example (`sample-data/example-export.json`): a schema 10 export of
-the LIM sandbox model (LAN_LIM Arboris_EWR Sandbox) with its 3D scene and the
-colour schemes of its Revit views — three schemes (A, B and C, each with the
-whole existing site, retained or demolished) and the existing site — made on
-2026-10-26 by the export code of LandscapeDataManager v1.8.0, after its planting
-areas were recalculated with their cost saved and every tree and planting-area
-type was synced from Airtable (bloom months, maintenance rates). It is 1.6 MB, so
+the bundled example (`sample-data/example-export.json`): a schema 16 export of
+the LIM sandbox model (LIM_Sample_EWR Sandbox) with its 3D scene, floor and roof
+thickness, the colour schemes of its Revit views and LIM's standard benefit
+colourings — three schemes (A, B and C, each with the whole existing site,
+retained or demolished) and the existing site — made on 2026-11-09 by the
+export code of LandscapeDataManager v1.18.0. It is a large file, so
 the page fetches it when the button is clicked rather than carrying it inline;
 that works on GitHub Pages or any web server, but a page opened as a local file
 can't fetch it, so drop the file onto the page instead.
 
 ## What's in the export
 
-The JSON schema this page expects (schema version 12; versions 2 to 11 still
+The JSON schema this page expects (schema version 16; versions 2 to 15 still
 load, with carbon-to-CO₂e fallbacks and without panels their missing fields
 feed) is produced by
 `DashboardJsonExportService` in the
@@ -93,8 +101,8 @@ Top-level shape:
 
 ```jsonc
 {
-  "schemaVersion": 12,
-  "project": { "title", "currency", "location": { "latitude", "longitude", "placeName" }, "generatedAt" },
+  "schemaVersion": 16,
+  "project": { "title", "currency", "location": { "latitude", "longitude", "placeName" }, "generatedAt", "exchangeRate" /* schema 13 */ },
   "scene": { /* schema 9, optional: the trees and planting areas in 3D — see "3D site" below */ },
   "scenarios": [
     {
@@ -107,7 +115,8 @@ Top-level shape:
       "species": [ /* per-species subtotals, scoped to this design option */ ],
       "floorTypes": [ /* per floor/softscape-type subtotals */ ],
       "sceneTrees": [ /* schema 9: indices into scene.trees */ ],
-      "sceneFloors": [ /* schema 9: indices into scene.floors */ ]
+      "sceneFloors": [ /* schema 9: indices into scene.floors */ ],
+      "siteDetails": [ /* schema 14: the tables behind each site card */ ]
     }
     // ...one entry per design option
   ]
@@ -124,6 +133,22 @@ pre-schema-12 species run-off fallback, so those table cells show “—” and 
 Water species ranking asks for a new export from LIM 1.11 or later.
 `floorTypes[].isHardSurface` groups landscape tables into green space and hard
 surfaces; older exports fall back to `totalGwp > 0`.
+
+**Exchange rate, site details, thickness and standard colours (schemas 13–16).**
+- *Schema 13:* `project.exchangeRate` records the USD rates the tree money stands
+  at (`treeRateMin`–`treeRateMax`) and the rate at export with its `source`
+  (`fixed`, `market` with the ECB date as `asOf`, `none` for USD, or
+  `unavailable`). The page shows it beside the snapshot time, and reads
+  ￥/¥/RMB/CNY currency as renminbi.
+- *Schema 14:* each scenario carries `siteDetails`, the desktop Dashboard's Site
+  details tables (`key`, `title`, `explanation`, `lanes`, `rows`, `total`); the
+  page opens a card's table when it is clicked.
+- *Schema 15:* each scene floor carries its `category` (floor or roof) and an
+  optional type `thickness` in metres, so the 3D draws thickness down from the
+  top face, including walls around openings. Older exports stay flat.
+- *Schema 16:* every export carries eight standard benefit `colourSchemes`
+  (flagged `standard`) so **Colour by** works even in projects whose views use no
+  colour filters.
 
 **BNG follows the metric's on-site headline.** Each floor's Revit phases decide
 its row of the Statutory Biodiversity Metric: floors created in the project's
@@ -300,4 +325,4 @@ source before using this for anything published externally.
 
 This is a static site — any static host works (GitHub Pages, Netlify, a
 plain file share). To publish via GitHub Pages: Settings → Pages → Deploy
-from branch → `main` / `/ (root)`.
+from branch → `master` / `/ (root)`.
